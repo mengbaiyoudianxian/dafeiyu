@@ -189,6 +189,9 @@ def meta(d):
     return m
 
 
+FORKS = {'astrbot_plugin_better_music': 'astrbot_plugin_better_music', 'astrbot_plugin_bili_scroll': 'astrbot_plugin_bili_scroll',
+         'astrbot_plugin_group_chat_plus': 'astrbot_plugin_group_chat_plus', 'astrbot_plugin_livingmemory': 'astrbot_plugin_livingmemory',
+         'astrbot_plugin_multi_parser': 'astrbot_plugin_multi_parser', 'astrbot_plugin_qzone': 'astrbot_plugin_qzone'}
 rows_self, rows_third = [], []
 for d in sorted(glob.glob(P + '*/')):
     name = os.path.basename(d.rstrip('/'))
@@ -196,15 +199,17 @@ for d in sorted(glob.glob(P + '*/')):
     desc = scrub(m.get('desc', '')).replace('|', '/').strip()
     if name.startswith('astrbot_plugin_dafeiyu_'):
         if name not in EXCLUDE_PLUGINS:
-            rows_self.append(f"| [`{name}`](../plugins/{name}) | {m.get('version', '')} | {desc[:120]} |")
+            rows_self.append(f"| [`{name}`](https://github.com/mengbaiyoudianxian/{name}) | {m.get('version', '')} | {desc[:120]} | [源码](../plugins/{name}) |")
     else:
         repo = m.get('repo', '')
-        rows_third.append(f"| [{m.get('display_name') or name}]({repo}) | `{name}` | {m.get('version', '')} | {m.get('author', '')} | {desc[:90]} |")
+        fork = FORKS.get(name)
+        mod = f"[魔改版](https://github.com/mengbaiyoudianxian/{fork})" if fork else '原版'
+        rows_third.append(f"| [{m.get('display_name') or name}]({repo}) | `{name}` | {m.get('version', '')} | {m.get('author', '')} | {mod} | {desc[:90]} |")
 os.makedirs(os.path.join(OUT, 'docs'), exist_ok=True)
 with open(os.path.join(OUT, 'docs', 'plugins.md'), 'w', encoding='utf-8') as f:
     f.write('# 插件清单\n\n> 这份清单由 `scripts/export_repo.py` 从服务器上实际装着的插件自动生成。\n\n')
-    f.write('## 自写插件（代码在 `plugins/`）\n\n| 插件 | 版本 | 干什么 |\n|---|---|---|\n' + '\n'.join(rows_self) + '\n\n')
-    f.write('## 第三方插件（在 AstrBot 插件市场安装，代码不在本仓库）\n\n| 插件 | 目录名 | 我们用的版本 | 作者 | 说明 |\n|---|---|---|---|---|\n'
+    f.write('## 自写插件\n\n每个插件都单独开了仓库，AstrBot 后台 → 插件 → 从链接安装，填插件名那一列的链接就能装；本仓库 `plugins/` 里也有一份。\n\n| 插件（独立仓库） | 版本 | 干什么 | 本仓库 |\n|---|---|---|---|\n' + '\n'.join(rows_self) + '\n\n')
+    f.write('## 第三方插件\n\n「原版」直接在 AstrBot 插件市场装；「魔改版」是我们 fork 后改过、大肥鱼实际在跑的版本，沿用上游原协议，README 顶部写了改了什么，从链接安装即可（装了魔改版就不用再跑下面的补丁）。\n\n| 插件 | 目录名 | 我们用的版本 | 作者 | 用哪个 | 说明 |\n|---|---|---|---|---|---|\n'
             + '\n'.join(rows_third) + '\n\n')
     f.write('其中几个第三方插件我们打了本地补丁，脚本在 `patches/`，**插件升级后要重跑一遍**：\n\n'
             '| 补丁 | 改了什么 |\n|---|---|\n'
@@ -218,7 +223,7 @@ if os.path.isdir(TPL):
     for f in glob.glob(TPL + '**/*', recursive=True):
         if os.path.isfile(f):
             copy_text(f, os.path.join(OUT, os.path.relpath(f, TPL)))
-for f in ('update_stats.py', 'export_repo.py'):
+for f in ('update_stats.py', 'export_repo.py', 'export_plugins.py'):
     src = '/opt/dafeiyu/github/' + f
     if os.path.exists(src):
         copy_text(src, os.path.join(OUT, 'scripts', f))
@@ -230,7 +235,8 @@ LEAK = [
     (r'rt\.1\.[A-Za-z0-9_-]{20,}', 'refresh token'), (r'BDUSS\s*[=:]\s*["\']?[A-Za-z0-9~-]{40,}', 'BDUSS'),
     (r'SESSDATA\s*[=:]\s*["\']?[A-Za-z0-9%,*]{20,}', 'SESSDATA'), (r'auth_token["\']?\s*[=:]\s*["\']?[0-9a-f]{30,}', 'X auth_token'),
     (r'-----BEGIN [A-Z ]*PRIVATE KEY-----', '私钥'), (r'(?<!\d)1[3-9]\d{9}(?!\d)', '手机号'),
-    (r'100\.(?!64\.0\.0\b)\d{1,3}\.\d{1,3}\.\d{1,3}', 'Tailscale IP'),  # 100.64.0.0/10 是通用网段，不算 (r'43\.142\.97\.15|38\.76\.188\.50', '服务器 IP'),
+    (r'100\.(?!64\.0\.0\b)\d{1,3}\.\d{1,3}\.\d{1,3}', 'Tailscale IP'),  # 100.64.0.0/10 是通用网段，不算
+    (r'43\.142\.97\.15|38\.76\.188\.50', '服务器 IP'),
     (r'your-server|tail[0-9a-f]{6}\.ts\.net', '主机名'),
 ]
 private_literals = [x for x in (owner, bot) if x] + gnames + risky_names

@@ -64,7 +64,15 @@ top = sorted(((k, v) for k, v in emo.items() if k in EMO), key=lambda kv: -kv[1]
 s['mood'] = '、'.join('%s %d' % (EMO[k], round(v)) for k, v in top)
 s['energy'] = round((h.get('self') or {}).get('energy') or 0)
 act = (h.get('self') or {}).get('act') or {}
-s['doing'] = re.sub(r'\s+', ' ', str(act.get('doing') or ''))[:40]
+_d = re.sub(r'\s+', ' ', str(act.get('doing') or '')).strip()
+if len(_d) > 60:
+    # 在 60 字以内最后一个标点处截断，不在半句话中间切
+    _cut = max(_d.rfind(c, 0, 60) for c in '，。！？；,.!?;')
+    if _cut >= 15:
+        _d = _d[:_cut + 1] if _d[_cut] in '。！？.!?' else _d[:_cut] + '…'
+    else:
+        _d = _d[:60] + '…'
+s['doing'] = _d
 s['doing_feel'] = str(act.get('feel') or '')[:20]
 
 # ---- 认识多少人 ----
