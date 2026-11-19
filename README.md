@@ -9,12 +9,12 @@
 <!-- STATS:START -->
 ## 她现在怎么样
 
-> 每小时自动更新 · 最近一次：2026-11-20 00:17（北京时间）
+> 每小时自动更新 · 最近一次：2026-11-20 00:24（北京时间）
 
 | | |
 |---|---|
 | 状态 | 🟢 在线 |
-| 此刻心情 | 高兴 89、担心 20、烦躁 15 · 精力 0 |
+| 此刻心情 | 高兴 88、担心 19、烦躁 14 · 精力 0 |
 | 手上在干嘛 | 横在沙发上刷贴吧，看见有人问砂锅粥该不该放冬菜，翻了半天评论，顺手把一家店存进收藏夹。（先收藏，又没说非得去。） |
 | 来到 QQ | 2026-11-10 起，第 11 天 |
 
@@ -24,8 +24,8 @@
 | QQ 好友 | 2 个 |
 | 打过交道的人 | 164 个 |
 | 有印象的群友 | 318 个 |
-| 记住的群消息 | 6891 条（她自己说的 1123 条） |
-| 学会的梗 / 说法 | 332 个梗 · 1554 种说法 |
+| 记住的群消息 | 6897 条（她自己说的 1125 条） |
+| 学会的梗 / 说法 | 332 个梗 · 1569 种说法 |
 | 收藏的表情包 | 185 张 |
 
 | 刷网 | |
@@ -36,8 +36,8 @@
 
 | 消耗 | |
 |---|---|
-| 对话调用模型 | 1404 次 |
-| 累计 token | 4487.3 万（输入 4480.9 万，其中缓存命中 729.5 万；输出 6.4 万） |
+| 对话调用模型 | 1406 次 |
+| 累计 token | 4493.0 万（输入 4486.6 万，其中缓存命中 729.5 万；输出 6.4 万） |
 
 <sub>token 只统计聊天主流程（AstrBot 自带统计），后台整理记忆、刷网、心情判断这些额外调用没算进去。</sub>
 <!-- STATS:END -->
@@ -72,12 +72,51 @@ QQ ──NapCat（无头 QQ 客户端）──反向 WebSocket──▶ AstrBot 
 
 一步一步的部署说明在 **[docs/deploy.md](docs/deploy.md)**，用到的插件和版本在 **[docs/plugins.md](docs/plugins.md)**，人设在 **[deploy/persona.md](deploy/persona.md)**。
 
+## 只想装某个插件
+
+每个插件都单独开了仓库：AstrBot 后台 → 插件 → 从链接安装，填仓库地址就行。
+
+**自写插件**（大肥鱼非商业许可）
+
+| 插件 | 干什么 |
+|---|---|
+| [心情](https://github.com/mengbaiyoudianxian/astrbot_plugin_dafeiyu_heart) | 对每个人的亲密、信任、不满，自己的喜怒和精力 |
+| [念头](https://github.com/mengbaiyoudianxian/astrbot_plugin_dafeiyu_impulse) | 像人一样突然想做点什么：找人聊天、群里冒泡、刷网、改资料 |
+| [知识库](https://github.com/mengbaiyoudianxian/astrbot_plugin_dafeiyu_kb) | 群聊和刷到的内容永久存下，整理成梗、话题和群友印象 |
+| [成长](https://github.com/mengbaiyoudianxian/astrbot_plugin_dafeiyu_growth) | 回顾经历、写成长日记、自己改人设，可回滚 |
+| [逛贴吧](https://github.com/mengbaiyoudianxian/astrbot_plugin_dafeiyu_tieba) | 登着贴吧号自己看帖、写贴吧日记 |
+| [刷推特](https://github.com/mengbaiyoudianxian/astrbot_plugin_dafeiyu_x) | 按日程和心情刷 X，偶尔评论 |
+| [上网](https://github.com/mengbaiyoudianxian/astrbot_plugin_dafeiyu_web) | 联网搜索、打开网页核对，挡内网地址 |
+| [看视频](https://github.com/mengbaiyoudianxian/astrbot_plugin_dafeiyu_video) | 视频截帧给模型看，语音转文字 |
+| [看群里的图](https://github.com/mengbaiyoudianxian/astrbot_plugin_dafeiyu_groupimage) | 没 @ 她的图也先看一眼 |
+| [放歌](https://github.com/mengbaiyoudianxian/astrbot_plugin_dafeiyu_sing) | 整首歌作为一条 QQ 语音发出 |
+| [上网找表情包](https://github.com/mengbaiyoudianxian/astrbot_plugin_dafeiyu_memesearch) | 搜图、识图核对，只发对得上的 |
+| [表情包记账](https://github.com/mengbaiyoudianxian/astrbot_plugin_dafeiyu_memelog) | 没真发出去的表情包不留在记录里 |
+| [改签名](https://github.com/mengbaiyoudianxian/astrbot_plugin_dafeiyu_signature) | 叫她改或心情变了自己改 QQ 签名 |
+| [回复防串台](https://github.com/mengbaiyoudianxian/astrbot_plugin_dafeiyu_clean) | 删掉模型漏出的内部标签 |
+| [清空不失忆](https://github.com/mengbaiyoudianxian/astrbot_plugin_dafeiyu_resetkeep) | /reset 前先存进长期记忆 |
+| [自查](https://github.com/mengbaiyoudianxian/astrbot_plugin_dafeiyu_doctor) | 自己看报错日志，用人话说出来 |
+| [找插件](https://github.com/mengbaiyoudianxian/astrbot_plugin_dafeiyu_pluginscout) | 逛插件市场，推荐给主人，同意才装 |
+| [巡检中转](https://github.com/mengbaiyoudianxian/astrbot_plugin_dafeiyu_claude) | Claude 每小时巡检，经她的 QQ 跟主人汇报 |
+
+**魔改的第三方插件**（fork 自原作者，沿用原协议；README 顶部写了改了什么）
+
+| 插件 | 原作者 | 协议 |
+|---|---|---|
+| [群聊增强 chat_plus](https://github.com/mengbaiyoudianxian/astrbot_plugin_group_chat_plus) | Him666233 | AGPL-3.0 |
+| [我会自己刷B站](https://github.com/mengbaiyoudianxian/astrbot_plugin_bili_scroll) | GuHan-OvO | AGPL-3.0 |
+| [LivingMemory](https://github.com/mengbaiyoudianxian/astrbot_plugin_livingmemory) | lxfight | AGPL-3.0 |
+| [更好的点歌](https://github.com/mengbaiyoudianxian/astrbot_plugin_better_music) | Xing | GPL-3.0 |
+| [多平台内容解析](https://github.com/mengbaiyoudianxian/astrbot_plugin_multi_parser) | Qfxaile | MIT |
+| [QQ空间](https://github.com/mengbaiyoudianxian/astrbot_plugin_qzone) | Zhalslar | GPL-3.0 |
+
+
 ## 目录
 
 | 目录 | 是什么 |
 |---|---|
 | `plugins/` | 自写插件，直接复制到 AstrBot 的 `data/plugins/` 下 |
-| `patches/` | 给第三方插件打的本地补丁（插件升级后要重跑） |
+| `patches/` | 给第三方插件打的本地补丁（插件升级后要重跑；直接装上面的魔改版就不用） |
 | `tools/` | 辅助脚本：给 QQ 走代理、给表情包打标签、批量调配置 |
 | `deploy/` | systemd 单元、NapCat 启动脚本、人设、配置样例（密钥都换成了占位） |
 | `docs/` | 部署说明、插件清单 |
@@ -88,7 +127,7 @@ QQ ──NapCat（无头 QQ 客户端）──反向 WebSocket──▶ AstrBot 
 
 - **所有密钥、账号、cookie、聊天记录、群友数据**：仓库里的配置都是样例，密钥和号码已换成占位；她的记忆、日记、好感数据不公开。
 - **模型订阅的接入方式**：我们自己的模型接入走的是私有方案，没放进来。部署时接任意 OpenAI 兼容的 API 就行（比如 DeepSeek、OpenAI、各家中转），在 AstrBot 后台填 key。
-- 第三方插件的代码：去各自的仓库装，链接见 [docs/plugins.md](docs/plugins.md)。
+- 第三方插件的代码：原版去各自的仓库装，魔改版见上面的表，完整清单在 [docs/plugins.md](docs/plugins.md)。
 
 ## 底线
 
