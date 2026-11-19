@@ -1,0 +1,9 @@
+name: astrbot_plugin_dafeiyu_memesearch
+display_name: 大肥鱼上网找表情包
+desc: 她想发特定意思的图、或别人点名要某种表情包时，上网搜几张，先识图看对不对得上，只发对得上的那张，好图收进精选包
+help: 装上就行；可以设识图模型和每天最多找几次
+version: v0.1.0
+author: dafeiyu-local
+support_platforms:
+  - aiocqhttp
+  - webchat

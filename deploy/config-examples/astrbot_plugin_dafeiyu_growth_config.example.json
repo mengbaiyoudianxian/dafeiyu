@@ -1,0 +1,11 @@
+{
+  "enable": true,
+  "interval_days": 3,
+  "run_hour": 4,
+  "persona_id": "大肥鱼",
+  "allow_persona_edit": true,
+  "provider_id": "",
+  "notify_owner": true,
+  "inject_profile": true,
+  "owner_umo": ""
+}

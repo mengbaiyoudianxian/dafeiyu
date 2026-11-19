@@ -1,0 +1,12 @@
+{
+  "enable": true,
+  "judge_provider_id": "",
+  "change_scale": 1.0,
+  "owner_floor": 30,
+  "happy_base": 60,
+  "energy_per_chat": 0.6,
+  "sleep_hours": "1-8",
+  "morning_hours": "8-10",
+  "night_hours": "23-1",
+  "owner_umo": ""
+}

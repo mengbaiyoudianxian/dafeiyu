@@ -1,0 +1,4 @@
+{
+  "daily_recommend": {"description": "每天最多推荐几个插件给主人", "type": "int", "default": 3},
+  "platform_id": {"description": "QQ 平台名", "type": "string", "default": "大肥鱼"}
+}

@@ -1,0 +1,4 @@
+{
+  "vision_provider_id": {"description": "识图用哪个模型", "type": "string", "default": "grok/grok-4.6", "hint": "要能看图、认字准的模型"},
+  "daily_limit": {"description": "每天最多上网找几次图", "type": "int", "default": 40}
+}

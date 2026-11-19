@@ -1,0 +1,22 @@
+{
+  "cookie_file": "",
+  "use_multi_parser_login": true,
+  "comments_per_floor": 4,
+  "max_chars": 3500,
+  "proactive_enable": true,
+  "proactive_times_per_day": 12,
+  "proactive_hours": "9-23",
+  "interest_forums": [
+    "deepseek",
+    "弱智",
+    "二次元",
+    "原神",
+    "显卡",
+    "大学"
+  ],
+  "share_to_owner": true,
+  "share_per_day": 1,
+  "owner_umo": "",
+  "inject_context": true,
+  "provider_id": ""
+}

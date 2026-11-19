@@ -1,0 +1,5 @@
+{
+  "platform_order": {"description": "先用哪个平台找歌", "type": "string", "default": "kugou,netease,qq", "hint": "逗号分隔，按顺序用第一个已登录的"},
+  "max_seconds": {"description": "最多放多少秒", "type": "int", "default": 0, "hint": "0 = 整首"},
+  "daily_limit": {"description": "每天最多放几首", "type": "int", "default": 0, "hint": "0 = 不限"}
+}

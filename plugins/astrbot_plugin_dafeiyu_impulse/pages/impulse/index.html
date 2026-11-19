@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>大肥鱼控制中心</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="head">
+        <div>
+          <h1>大肥鱼控制中心</h1>
+          <p>QQ 登录、音乐账号、念头、表情包、插件推荐都在这一页。</p>
+        </div>
+        <button id="refresh" class="ghost" type="button">刷新</button>
+      </header>
+      <nav class="tabs" id="tabs">
+        <button data-tab="home" class="on">概览</button>
+        <button data-tab="mind">念头</button>
+        <button data-tab="music">音乐</button>
+        <button data-tab="x">推特</button>
+        <button data-tab="memes">表情包</button>
+        <button data-tab="plugins">插件推荐</button>
+      </nav>
+      <div class="notice" id="notice" hidden></div>
+
+      <!-- 概览 -->
+      <section class="grid2 tab" data-tab="home">
+        <article class="card">
+          <h2>QQ 登录</h2>
+          <div class="account">
+            <span class="dot" id="qqDot"></span>
+            <div><strong id="qqState">读取中…</strong><span id="qqMeta"></span></div>
+          </div>
+          <div class="qr" id="qqQr" hidden>
+            <img id="qqQrImg" alt="QQ 登录二维码" />
+            <p id="qqQrAge" class="muted"></p>
+            <p class="muted">用登着这个号的手机 QQ 扫，手机要开着 19224 节点（和服务器同一个出口）。</p>
+          </div>
+          <div class="actions">
+            <button id="qqRefresh" class="ghost" type="button">换一张码 / 重启 QQ</button>
+          </div>
+          <p class="muted" id="qqSvc"></p>
+        </article>
+
+        <article class="card">
+          <h2>音乐</h2>
+          <div id="musicBrief"><p class="muted">读取中…</p></div>
+          <div class="actions"><button class="ghost" type="button" data-goto="music">去音乐页登录 / 试放</button></div>
+        </article>
+
+        <article class="card">
+          <h2>她现在</h2>
+          <div class="account">
+            <span class="dot" id="dot"></span>
+            <div><strong id="state">读取中…</strong><span id="meta"></span></div>
+          </div>
+          <div class="actions"><button id="toggle" class="ghost" type="button">关掉念头</button></div>
+        </article>
+
+        <article class="card">
+          <h2>她的钱包</h2>
+          <p id="money"><span class="muted">读取中…</span></p>
+          <p class="muted" id="moneyMeta"></p>
+          <p class="muted">充值：<a href="https://platform.deepseek.com/top_up" target="_blank">platform.deepseek.com/top_up</a>（要你自己登录 DeepSeek 付款）</p>
+        </article>
+
+        <article class="card">
+          <h2>她自己的资料</h2>
+          <div id="profiles" class="profiles"><p class="muted">点下面按钮看（会让她看一眼头像，花一点额度）</p></div>
+          <div class="actions"><button id="loadProfiles" class="ghost" type="button">看看</button></div>
+        </article>
+      </section>
+
+      <!-- 念头 -->
+      <section class="grid tab" data-tab="mind" hidden>
+        <article class="card">
+          <h2>让她马上想一个</h2>
+          <div class="chips" id="chips"></div>
+          <p class="muted">「随便」按权重抽；点具体的就直接做那件事（仍然由她决定说什么，可能想想就算了）。权重、上限、群名单在插件配置里改。</p>
+          <h3 class="sub">今天各类念头</h3>
+          <p class="muted">「今天」只算没人回的次数；有人回的那次会退回名额。</p>
+          <table class="tbl" id="events"></table>
+          <h3 class="sub">群反馈</h3>
+          <p class="muted">她冒泡后 20 分钟内有人接话 / @她就算有反馈。</p>
+          <table class="tbl" id="groups"></table>
+        </article>
+        <article class="card wide">
+          <h2>她最近的念头</h2>
+          <ul class="history" id="log"></ul>
+        </article>
+      </section>
+
+      <!-- 音乐 -->
+      <section class="grid2 tab" data-tab="music" hidden>
+        <article class="card">
+          <h2>音乐账号</h2>
+          <p class="muted">每个平台各登各的，可以同时扫。她放歌时按下面「设置」里的顺序，用第一个已登录的平台。</p>
+          <div id="musicAccounts"><p class="muted">读取中…</p></div>
+        </article>
+
+        <article class="card">
+          <h2>搜歌试放</h2>
+          <div class="row">
+            <input id="songQ" placeholder="歌名，最好带歌手，比如：晴天 周杰伦" />
+            <select id="songP">
+              <option value="">自动（按顺序）</option>
+              <option value="kugou">酷狗</option>
+              <option value="netease">网易云</option>
+              <option value="qq">QQ 音乐</option>
+            </select>
+            <button id="songGo" class="primary" type="button">搜</button>
+          </div>
+          <p class="muted">点「放到我私聊」会整首作为一条语音发到你的 QQ 私聊，用来试音质和速度。</p>
+          <div id="songResults" class="results"></div>
+        </article>
+
+        <article class="card">
+          <h2>放歌设置</h2>
+          <label class="field">平台顺序
+            <div class="order" id="orderBox"></div>
+          </label>
+          <label class="field">每首最多放多少秒（0 = 整首）
+            <input id="maxSec" type="number" min="0" step="10" />
+          </label>
+          <label class="field">每天最多放几首
+            <input id="dayLimit" type="number" min="1" step="1" />
+          </label>
+          <div class="actions"><button id="saveMusic" class="primary" type="button">保存</button></div>
+        </article>
+
+        <article class="card">
+          <h2>最近放的歌</h2>
+          <p class="muted" id="singToday"></p>
+          <ul class="history" id="plays"></ul>
+        </article>
+      </section>
+
+      <!-- 推特 -->
+      <section class="grid2 tab" data-tab="x" hidden>
+        <article class="card">
+          <h2>推特账号</h2>
+          <div class="account">
+            <span class="dot" id="xDot"></span>
+            <div><strong id="xState">读取中…</strong><span id="xMeta"></span></div>
+          </div>
+          <div id="xLogin">
+            <div class="actions"><button id="xWeb" class="primary" type="button">在网页里登录推特</button></div>
+            <p class="muted">点了会在下面出现一个浏览器窗口（服务器上的），直接在里面登录你的推特就行，登好了会自动识别，浏览器自己关掉。</p>
+            <div id="xWebBox" hidden>
+              <iframe id="xWebFrame" title="远程浏览器" class="vnc"></iframe>
+              <p class="muted" id="xWebMsg">等你登录…</p>
+            </div>
+            <details class="more"><summary class="muted">其他方式</summary>
+            <div class="tabs mini">
+              <button type="button" class="on" data-xl="paste">粘贴 Cookie</button>
+              <button type="button" data-xl="pw">账号密码（推特常拦）</button>
+            </div>
+            <div data-xp="pw" hidden>
+              <div class="row"><input id="xUser" placeholder="推特用户名 / 邮箱 / 手机号" autocomplete="username" /></div>
+              <div class="row"><input id="xPw" type="password" placeholder="密码" autocomplete="current-password" /></div>
+              <div class="row"><input id="xExtra" placeholder="邮箱或手机号（推特要求验证时才填）" autocomplete="off" /></div>
+              <div class="actions"><button id="xLoginPw" class="primary" type="button">登录</button></div>
+              <p class="muted">服务器只登录这一次，之后只留登录凭证，密码不保存。开了两步验证的号用右边「粘贴 Cookie」。</p>
+            </div>
+            <div data-xp="paste">
+              <p class="muted">最省事：电脑上打开已登录的 x.com → 按 F12 → 「网络 / Network」→ 按 F5 刷新 → 点列表里任意一个 x.com 的请求 →
+                在「请求标头」里找到 <code>cookie:</code> 那一行，右键复制值，整段贴下面。</p>
+              <textarea id="xPaste" rows="4" placeholder="把 Cookie 整段贴进来就行（F12 复制整段 Cookie、Cookie-Editor 扩展导出的 JSON 都行），会自动找出需要的两项"></textarea>
+              <div class="actions"><button id="xSave" class="primary" type="button">保存并试登录</button></div>
+            </div>
+            </details>
+          </div>
+          <div class="actions">
+            <button id="xRun" class="ghost" type="button">让她现在刷一轮</button>
+            <button id="xClear" class="ghost" type="button" hidden>退出（删掉 Cookie）</button>
+          </div>
+          <p class="muted">推特流量走 19224 节点，和你平时用推特同一个出口。</p>
+        </article>
+
+        <article class="card">
+          <h2>规矩和开关</h2>
+          <label class="check"><input type="checkbox" id="xEnable" /> 让她按日程和心情自己刷</label>
+          <label class="check"><input type="checkbox" id="xComment" /> 允许她在推特上评论（每天有上限，政治和色情帖不评）</label>
+          <label class="check"><input type="checkbox" id="xNsfw" /> 允许私聊发色情帖</label>
+          <p class="muted" id="xNsfwMeta"></p>
+          <p class="muted">写死的规矩：政治帖不看不评不转；色情帖群里一律不发；涉及未成年或幼态角色的一律不碰，发图前还会识图再查一遍。</p>
+          <p class="muted" id="xToday"></p>
+        </article>
+
+        <article class="card">
+          <h2>她最近刷到的</h2>
+          <ul class="history" id="xItems"></ul>
+        </article>
+
+        <article class="card">
+          <h2>她在推特上做了什么</h2>
+          <ul class="history" id="xLog"></ul>
+        </article>
+      </section>
+
+      <!-- 表情包 -->
+      <section class="grid2 tab" data-tab="memes" hidden>
+        <article class="card">
+          <h2>精选包</h2>
+          <p id="memeSum" class="muted">读取中…</p>
+          <table class="tbl" id="memeCats"></table>
+        </article>
+        <article class="card">
+          <h2>最近上网找来的</h2>
+          <p class="muted">她自己搜、识图确认对得上才发的图，发过的会收进精选包。</p>
+          <ul class="history" id="memeRecent"></ul>
+        </article>
+      </section>
+
+      <!-- 插件推荐 -->
+      <section class="tab" data-tab="plugins" hidden>
+        <article class="card">
+          <h2>她推荐的插件</h2>
+          <p class="muted">她只能搜和推荐；在这里点「装」或私聊回她「/装插件 编号」才会真的装。装插件就是在服务器上跑别人的代码，不在官方市场的最好先看看。</p>
+          <div id="recs"></div>
+        </article>
+      </section>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

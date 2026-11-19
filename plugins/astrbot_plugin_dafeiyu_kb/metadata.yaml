@@ -1,0 +1,8 @@
+name: astrbot_plugin_dafeiyu_kb
+display_name: 大肥鱼知识库
+desc: 把她待的群里的聊天、她刷到的贴吧/推特/B站全部存下来，定期整理成梗、话题、事件、群友印象；聊天时自动想起相关的；群友发的表情包看过、赋予意义后收进自己的表情包
+help: 不用指令。她自己会用 recall_memory 回忆、send_collected_meme 发收来的表情包；群友说「别记我」她会用 forget_me
+version: v0.1.0
+author: dafeiyu-local
+support_platforms:
+  - aiocqhttp

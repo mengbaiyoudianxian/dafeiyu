@@ -1,0 +1,9 @@
+name: astrbot_plugin_dafeiyu_tieba
+display_name: 大肥鱼逛贴吧
+desc: 让她登着贴吧号看帖（只看不发），每天自己逛几次、写贴吧日记、看到好玩的私聊分享；后台「贴吧控制中心」扫码登录、试看、看她的日记
+help: 跟她说「去原神吧看看」「贴吧上搜搜……」；管理员 /逛贴吧 让她现在去逛一次、/贴吧登录 扫码、/贴吧状态 看登录
+version: v0.3.2
+author: dafeiyu-local
+support_platforms:
+  - aiocqhttp
+

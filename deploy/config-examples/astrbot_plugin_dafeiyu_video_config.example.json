@@ -1,0 +1,11 @@
+{
+  "ffmpeg_path": "/usr/bin/ffmpeg",
+  "max_seconds": 180,
+  "max_frames": 6,
+  "group_need_at": true,
+  "keep_frames": false,
+  "asr_dir": "/opt/dafeiyu/asr",
+  "asr_key": "",
+  "asr_model": "FunAudioLLM/SenseVoiceSmall",
+  "listen_voice": true
+}

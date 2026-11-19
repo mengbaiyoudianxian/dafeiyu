@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>贴吧控制中心</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="head">
+        <div>
+          <h1>贴吧控制中心</h1>
+          <p>大肥鱼逛贴吧：只看不发。每天会自己逛几次、写贴吧日记，看到好玩的会私聊分享给你。</p>
+        </div>
+        <button id="refreshAll" class="ghost" type="button">刷新</button>
+      </header>
+
+      <div class="notice" id="notice" hidden></div>
+
+      <section class="grid">
+        <article class="card" id="accountCard">
+          <h2>账号</h2>
+          <div class="account">
+            <span class="dot" id="accountDot"></span>
+            <div>
+              <strong id="accountName">读取中…</strong>
+              <span id="accountMeta"></span>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="loginBtn" class="primary" type="button">扫码登录</button>
+            <button id="logoutBtn" class="ghost" type="button" hidden>退出登录</button>
+          </div>
+          <div class="qr" id="qrBox" hidden>
+            <img id="qrImg" alt="贴吧登录二维码" />
+            <p id="qrMsg"></p>
+            <p class="muted" id="qrLeft"></p>
+            <button id="cancelBtn" class="ghost small" type="button">取消</button>
+          </div>
+          <p class="muted tip">建议用贴吧小号。登录信息只存在服务器上，本页面不会显示。也可以在 QQ 里私聊她发 <code>/贴吧登录</code>。</p>
+        </article>
+
+        <article class="card" id="selfCard">
+          <h2>她自己逛</h2>
+          <div class="account">
+            <span class="dot" id="selfDot"></span>
+            <div>
+              <strong id="selfState">读取中…</strong>
+              <span id="selfMeta"></span>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="runBtn" class="primary" type="button">让她现在去逛一次</button>
+            <button id="toggleBtn" class="ghost" type="button">关掉</button>
+          </div>
+          <p class="muted" id="selfPlan"></p>
+          <p class="muted" id="selfForums"></p>
+          <h3 class="sub">贴吧日记</h3>
+          <ul id="diary" class="history diary"></ul>
+          <p class="muted tip">次数、时段、感兴趣的吧、分享上限在插件配置里改。QQ 里管理员发 <code>/逛贴吧</code> 也能让她马上去。</p>
+        </article>
+
+        <article class="card wide">
+          <h2>逛贴吧</h2>
+          <form class="row" id="forumForm">
+            <input id="forumName" placeholder="吧名，比如 原神" autocomplete="off" />
+            <select id="forumSort">
+              <option value="reply">最新回复</option>
+              <option value="create">最新发帖</option>
+              <option value="hot">热门</option>
+            </select>
+            <button class="primary" type="submit">看看</button>
+          </form>
+          <form class="row" id="searchForm">
+            <input id="searchQ" placeholder="搜帖子" autocomplete="off" />
+            <input id="searchForum" placeholder="只在这个吧搜（可空）" autocomplete="off" />
+            <button class="primary" type="submit">搜索</button>
+          </form>
+          <form class="row" id="threadForm">
+            <input id="threadId" placeholder="帖子链接 tieba.baidu.com/p/… 或帖子号" autocomplete="off" />
+            <button class="primary" type="submit">打开帖子</button>
+          </form>
+          <div id="results" class="results"></div>
+        </article>
+
+        <article class="card">
+          <h2>她最近在贴吧看了什么</h2>
+          <ul id="history" class="history"></ul>
+        </article>
+      </section>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

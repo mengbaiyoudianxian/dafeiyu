@@ -1,0 +1,11 @@
+{
+  "platform_id": {"description": "QQ 平台名", "type": "string", "default": "大肥鱼"},
+  "owner_qq": {"description": "主人 QQ", "type": "string", "default": ""},
+  "llm_provider_id": {"description": "整理记忆用的模型", "type": "string", "default": "grok/grok-4.7"},
+  "vision_provider_id": {"description": "看表情包用的模型", "type": "string", "default": "grok/grok-4.7"},
+  "digest_min_new": {"description": "一个群攒够多少条新消息就整理一次", "type": "int", "default": 120},
+  "digest_chunk": {"description": "每次整理最多看多少条", "type": "int", "default": 300},
+  "backfill_pages": {"description": "第一次启动往回拉多少页群历史（每页 100 条）", "type": "int", "default": 40},
+  "collect_memes": {"description": "收群友的表情包", "type": "bool", "default": true},
+  "inject_items": {"description": "聊天时最多带几条相关记忆", "type": "int", "default": 8}
+}

@@ -1,0 +1,8 @@
+name: astrbot_plugin_dafeiyu_pluginscout
+display_name: 大肥鱼找插件
+desc: 她能搜 AstrBot 插件市场和 GitHub、看项目介绍，觉得有用就私聊推荐给主人；只有主人私聊回「/装插件 编号」才会安装
+help: 主人私聊命令：/插件推荐 看待批的；/装插件 编号 安装；/不装 编号 拒绝
+version: v0.1.0
+author: dafeiyu-local
+support_platforms:
+  - aiocqhttp

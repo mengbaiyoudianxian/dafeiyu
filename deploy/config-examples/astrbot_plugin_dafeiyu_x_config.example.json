@@ -1,0 +1,17 @@
+{
+  "enable": true,
+  "sessions_per_day": 0,
+  "check_min": 15,
+  "check_max": 45,
+  "comment_enable": true,
+  "comments_per_day": 0,
+  "comment_chance": 0.5,
+  "shares_per_day": 6,
+  "share_chance": 0.6,
+  "nsfw_share_enable": true,
+  "nsfw_threshold": 85,
+  "max_video_mb": 80,
+  "proxy": "http://127.0.0.1:7891",
+  "vision_provider_id": "",
+  "platform_id": "大肥鱼"
+}

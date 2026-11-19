@@ -1,0 +1,8 @@
+name: astrbot_plugin_dafeiyu_claude
+display_name: Claude 巡检中转
+desc: Claude 每小时看日志，用她的 QQ 私聊主人提改法；主人回「同意 #编号」才改。只认主人私聊。
+help: 回复格式：同意 #3 / 不同意 #3 / #3 后面写补充意见
+version: v0.1.0
+author: dafeiyu-local
+support_platforms:
+  - aiocqhttp

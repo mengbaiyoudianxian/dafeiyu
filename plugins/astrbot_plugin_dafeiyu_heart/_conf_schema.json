@@ -1,0 +1,12 @@
+{
+  "enable": {"description": "开启好感度和心情", "type": "bool", "default": true},
+  "judge_provider_id": {"description": "评估情绪用哪个模型", "type": "string", "default": "grok/grok-4.20-fast", "hint": "每次她回完话在后台评估一次；用快模型，留空就用主力模型"},
+  "change_scale": {"description": "变化幅度倍数", "type": "float", "default": 1.0, "hint": "嫌变得快就调小，比如 0.5；嫌太慢调大"},
+  "owner_floor": {"description": "对主人的亲密和信任最低降到多少", "type": "float", "default": 30},
+  "happy_base": {"description": "高兴的基线（没事时慢慢回到这里）", "type": "float", "default": 55, "hint": "钱不够时会自动往下掉"},
+  "energy_per_chat": {"description": "每聊一句消耗多少精力", "type": "float", "default": 0.6},
+  "sleep_hours": {"description": "睡觉时段（精力恢复、不会孤独）", "type": "string", "default": "1-8"},
+  "morning_hours": {"description": "起床气时段", "type": "string", "default": "8-10"},
+  "night_hours": {"description": "深夜感性时段", "type": "string", "default": "23-1"},
+  "owner_umo": {"description": "主人会话 ID", "type": "string", "default": "", "hint": "留空用 B 站插件的 OWNER_QQ_UMO"}
+}

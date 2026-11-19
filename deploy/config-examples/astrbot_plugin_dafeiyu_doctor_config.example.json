@@ -1,0 +1,4 @@
+{
+  "log_path": "/opt/dafeiyu/logs/astrbot.log",
+  "scan_lines": 6000
+}

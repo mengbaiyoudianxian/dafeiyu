@@ -1,0 +1,78 @@
+{
+  "cookie_file": {
+    "description": "贴吧登录信息文件",
+    "type": "string",
+    "hint": "扫码登录后存在这里（只有本用户能读）。也可以手动放 BDUSS（只放值，或者整段 BDUSS=...; STOKEN=...）。留空就存在插件数据目录",
+    "default": ""
+  },
+  "use_multi_parser_login": {
+    "description": "共用链接解析插件的贴吧登录",
+    "type": "bool",
+    "hint": "上面的文件空着时，用「/平台登录 贴吧」扫码存下的登录信息，不用再扫一次",
+    "default": true
+  },
+  "comments_per_floor": {
+    "description": "看帖时每楼带几条楼中楼",
+    "type": "int",
+    "default": 4
+  },
+  "max_chars": {
+    "description": "一次最多给她看多少字",
+    "type": "int",
+    "hint": "太长会多花 DeepSeek 的钱",
+    "default": 3500
+  },
+  "proactive_enable": {
+    "description": "她自己逛贴吧",
+    "type": "bool",
+    "hint": "每天在下面的时段里随机挑几个时间，自己去感兴趣的吧挑帖看，写一句感想记进贴吧日记",
+    "default": true
+  },
+  "proactive_times_per_day": {
+    "description": "每天自己逛几次",
+    "type": "int",
+    "hint": "0 就是不自己逛；每次大约花两三千字的模型额度",
+    "default": 3
+  },
+  "proactive_hours": {
+    "description": "什么时段会去逛",
+    "type": "string",
+    "hint": "比如 9-23，就是早上 9 点到晚上 11 点之间",
+    "default": "9-23"
+  },
+  "interest_forums": {
+    "description": "她感兴趣的吧",
+    "type": "list",
+    "hint": "自己逛时从这里挑；聊天里她被叫去逛过的吧也会算进来",
+    "default": ["deepseek", "弱智", "二次元", "原神", "显卡", "大学"]
+  },
+  "share_to_owner": {
+    "description": "看到好玩的私聊分享给主人",
+    "type": "bool",
+    "hint": "主人就是 B 站插件里填的 QQ 私聊（也可以在下面单独填）",
+    "default": true
+  },
+  "share_per_day": {
+    "description": "每天最多分享几次",
+    "type": "int",
+    "default": 1
+  },
+  "owner_umo": {
+    "description": "分享发给谁（会话 ID）",
+    "type": "string",
+    "hint": "留空就用 B 站插件的 OWNER_QQ_UMO",
+    "default": ""
+  },
+  "inject_context": {
+    "description": "聊天时提醒她会逛贴吧",
+    "type": "bool",
+    "hint": "每次聊天给她加一小段：她能用贴吧工具、最近自己逛到了什么。关了她就只在被要求时才去看",
+    "default": true
+  },
+  "provider_id": {
+    "description": "自己逛时用哪个模型",
+    "type": "string",
+    "hint": "留空用她平时聊天的模型",
+    "default": ""
+  }
+}

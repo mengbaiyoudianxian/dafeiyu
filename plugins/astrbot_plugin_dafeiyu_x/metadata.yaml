@@ -1,0 +1,8 @@
+name: astrbot_plugin_dafeiyu_x
+display_name: 大肥鱼刷推特
+desc: 按她的日程和心情自己刷 X（推特），偶尔评论，有意思的连图带视频发给主人；政治帖不碰，色情帖群里一律不发、私聊要信任和好感都到阈值，涉及未成年一律不碰
+help: 在控制中心「推特」页填登录 Cookie；之后她会自己刷
+version: v0.1.0
+author: dafeiyu-local
+support_platforms:
+  - aiocqhttp

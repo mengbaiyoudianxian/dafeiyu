@@ -1,0 +1,4 @@
+{
+  "log_path": {"description": "AstrBot 日志文件", "type": "string", "default": "/opt/dafeiyu/logs/astrbot.log"},
+  "scan_lines": {"description": "往回看多少行日志", "type": "int", "default": 6000}
+}

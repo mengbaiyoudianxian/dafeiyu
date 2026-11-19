@@ -1,0 +1,8 @@
+name: astrbot_plugin_dafeiyu_web
+display_name: 大肥鱼上网
+desc: 给她上网的手：web_search 走 Grok 订阅的官方联网搜索（自己多轮搜、开网页核对，带出处；搜狗备用），fetch_page 打开网页读正文和链接；挡内网地址
+help: 不用指令，问她需要查的事她会自己去搜、去看
+version: v0.1.0
+author: dafeiyu-local
+support_platforms:
+  - aiocqhttp

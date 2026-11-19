@@ -1,0 +1,11 @@
+{
+  "platform_id": "大肥鱼",
+  "owner_qq": "",
+  "llm_provider_id": "",
+  "vision_provider_id": "",
+  "digest_min_new": 120,
+  "digest_chunk": 300,
+  "backfill_pages": 40,
+  "collect_memes": true,
+  "inject_items": 8
+}

@@ -1,0 +1,8 @@
+name: astrbot_plugin_dafeiyu_sing
+display_name: 大肥鱼放歌
+desc: 别人让她唱歌、放歌时，她自己找歌，整首作为一条 QQ 语音发出来（借「更好的点歌」的登录和下载）
+help: 先在「更好的点歌」页用酷狗扫码登录；之后直接跟她说「唱首 XX」就行
+version: v0.1.0
+author: dafeiyu-local
+support_platforms:
+  - aiocqhttp

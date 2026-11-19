@@ -1,0 +1,11 @@
+{
+  "enable": {"description": "开启自我成长", "type": "bool", "default": true},
+  "interval_days": {"description": "隔几天反思一次", "type": "float", "default": 3},
+  "run_hour": {"description": "几点反思（她睡觉的时候想事情）", "type": "int", "default": 4},
+  "persona_id": {"description": "她的人设 ID", "type": "string", "default": "大肥鱼"},
+  "allow_persona_edit": {"description": "允许她改自己的人设（包括核心设定）", "type": "bool", "default": true},
+  "provider_id": {"description": "反思用哪个模型", "type": "string", "default": "", "hint": "留空用主力模型"},
+  "notify_owner": {"description": "改完私聊告诉主人", "type": "bool", "default": true},
+  "inject_profile": {"description": "聊天时带上成长档案", "type": "bool", "default": true},
+  "owner_umo": {"description": "主人会话 ID", "type": "string", "default": "", "hint": "留空用 B 站插件的 OWNER_QQ_UMO"}
+}

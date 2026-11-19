@@ -1,0 +1,8 @@
+name: astrbot_plugin_dafeiyu_doctor
+display_name: 大肥鱼自查
+desc: 她自己出状况时能看自己的报错日志、插件状态和音乐账号状态，搞清楚问题出在哪，用人话说出来（只读，不改任何东西）
+help: 不用指令，她觉得自己哪里不对劲时会自己调 check_myself
+version: v0.1.0
+author: dafeiyu-local
+support_platforms:
+  - aiocqhttp

@@ -1,0 +1,17 @@
+[Unit]
+Description=Dafeiyu AstrBot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=agentuser
+WorkingDirectory=/opt/dafeiyu/astrbot
+Environment=PYTHONUTF8=1 PYTHONIOENCODING=utf-8 TZ=Asia/Shanghai
+ExecStart=/opt/dafeiyu/uv/bin/astrbot run
+Restart=always
+RestartSec=10
+StandardOutput=append:/opt/dafeiyu/logs/astrbot.log
+StandardError=append:/opt/dafeiyu/logs/astrbot.log
+
+[Install]
+WantedBy=multi-user.target

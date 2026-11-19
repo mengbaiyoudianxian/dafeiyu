@@ -1,0 +1,8 @@
+name: astrbot_plugin_dafeiyu_impulse
+display_name: 大肥鱼的念头
+desc: 像人一样突然想做点什么：找主人聊天、群里冒泡、@群友、找好友、刷B站、逛贴吧、看看并修改自己的资料；能看到自己 QQ/B站/贴吧 的头像和 ID
+help: 管理员 /念头 让她马上冒一个念头（/念头 群、/念头 主人、/念头 资料 …）；后台「大肥鱼控制中心」页：QQ 登录二维码、音乐账号登录、念头记录、表情包、插件推荐都在这一页
+version: v0.1.0
+author: dafeiyu-local
+support_platforms:
+  - aiocqhttp

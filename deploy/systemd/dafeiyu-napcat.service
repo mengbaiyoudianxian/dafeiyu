@@ -1,0 +1,18 @@
+[Unit]
+Description=Dafeiyu NapCat (QQ)
+After=network-online.target dafeiyu-astrbot.service
+Wants=network-online.target
+
+[Service]
+User=agentuser
+WorkingDirectory=/home/agentuser/Napcat
+Environment=TZ=Asia/Shanghai
+ExecStart=/opt/dafeiyu/start-napcat.sh
+Restart=always
+RestartSec=15
+KillMode=control-group
+StandardOutput=append:/opt/dafeiyu/logs/napcat.log
+StandardError=append:/opt/dafeiyu/logs/napcat.log
+
+[Install]
+WantedBy=multi-user.target
