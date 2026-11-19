@@ -1,0 +1,59 @@
+大肥鱼 非商业许可协议 v1.0
+Dafeiyu Non-Commercial License v1.0
+
+Copyright (c) 2026 孟白 (MengBai). 保留所有未明确授予的权利。
+
+一、免费授予的权利
+
+在遵守本协议全部条款的前提下，任何人都可以免费：
+1. 查看、学习、研究本仓库中的代码、文档和配置（以下统称「本作品」）；
+2. 在自己的设备或服务器上部署、运行本作品，供本人或亲友非商业地使用；
+3. 修改本作品，或在本作品基础上做衍生作品，供本人非商业地使用；
+4. 免费地、以非商业目的转发或再分发本作品及其衍生作品，但必须同时满足第三条的要求。
+
+二、禁止的行为（「商业用途」）
+
+未经著作权人事先书面授权，不得以任何形式将本作品或其衍生作品用于商业用途，包括但不限于：
+1. 出售、出租本作品或其衍生作品，或将其作为收费产品、收费服务的一部分；
+2. 有偿为他人部署、搭建、安装、调试、维护本作品或其衍生作品，或提供代部署、代搭建、托管、云端运行、SaaS、
+   账号租用等服务，无论是否直接收费、无论以何种名义收费（含打赏、会员、引流后变现等）；
+3. 将本作品或其衍生作品集成进任何商业产品、商业平台，或作为企业、团队、组织自用或对外提供的 Agent、智能体、
+   机器人、客服、助手等产品或服务的一部分；
+4. 以本作品或其衍生作品吸引流量、获取用户后进行商业变现；
+5. 去除、隐藏或修改本协议及著作权声明后再分发。
+
+上述第 2 条所述的部署、托管服务由著作权人保留，仅著作权人本人或经其书面授权者可以提供。
+
+三、再分发与衍生作品的条件
+
+再分发本作品或其衍生作品时，必须：
+1. 完整保留本协议全文和上方的著作权声明；
+2. 注明原作出处：https://github.com/（本仓库地址）；
+3. 衍生作品必须以本协议（或著作权人发布的更新版本）发布，同样不得商用。
+
+四、第三方组件
+
+本仓库引用的 AstrBot、NapCat 及各第三方插件，各自适用其原作者的许可协议，不受本协议约束；
+本协议只针对本仓库中由著作权人编写的内容。
+
+五、免责
+
+本作品按「现状」提供，不附带任何明示或默示的担保。因使用本作品造成的任何损失（包括但不限于账号被封、
+数据丢失、平台处罚），著作权人不承担责任。使用者应自行遵守 QQ、贴吧、B 站、推特及各模型服务商的用户协议，
+以及所在地的法律法规。
+
+六、终止
+
+违反本协议任何条款，所授予的权利自动终止，违约方应立即停止使用并删除本作品及其衍生作品。
+
+七、商业授权
+
+如需商业使用（包括第二条所列任何行为），请联系著作权人另行取得书面授权。
+
+--------------------------------------------------------------------------------
+English summary (the Chinese text above prevails):
+You may view, study, run, and modify this work for free for personal, non-commercial use, and share it
+non-commercially with this license and attribution intact. You may NOT use it commercially without prior
+written permission — including selling it, offering paid setup/deployment/hosting/SaaS services based on it,
+or integrating it into any commercial product or any company's/organization's agent, bot or assistant.
+Derivative works must use this same license. Provided "as is", without warranty.

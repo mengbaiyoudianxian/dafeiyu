@@ -57,7 +57,9 @@ def scrub(text):
 
 def copy_text(src, dst):
     os.makedirs(os.path.dirname(dst), exist_ok=True)
-    if src.endswith(TEXT_EXT):
+    if os.path.basename(src) == 'LICENSE':  # 协议里的著作权人署名原样保留
+        shutil.copy2(src, dst)
+    elif src.endswith(TEXT_EXT):
         with open(src, encoding='utf-8', errors='ignore') as f:
             s = f.read()
         with open(dst, 'w', encoding='utf-8') as f:
