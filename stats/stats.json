@@ -1,16 +1,16 @@
 {
-  "updated_at": "2026-11-27 23:17",
+  "updated_at": "2026-11-28 00:17",
   "online": true,
   "groups_joined": 6,
   "friends": 2,
-  "mood": "高兴 64、担心 29、孤独 27",
-  "energy": 55,
+  "mood": "高兴 63、孤独 32、担心 29",
+  "energy": 53,
   "doing": "四个人吃重庆火锅，我下了不少毛肚和虾滑，辣得灌了两瓶酸梅汤，同学起哄让我再来一筷宽粉",
   "doing_feel": "辣是辣，再来一筷也不是不行",
   "people_known": 272,
   "impressions": 447,
   "groups_chatted": 7,
-  "group_messages_remembered": 15647,
+  "group_messages_remembered": 15773,
   "her_group_messages": 2997,
   "memes_learned": 922,
   "sayings_learned": 3722,
@@ -32,5 +32,5 @@
   "bridge_calls": 12856,
   "tokens_ledger_since": "2026-11-19 04:08:03",
   "since": "2026-11-10",
-  "days_alive": 18
+  "days_alive": 19
 }
