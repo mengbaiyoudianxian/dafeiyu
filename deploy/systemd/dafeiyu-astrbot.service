@@ -7,6 +7,8 @@ Wants=network-online.target
 User=agentuser
 WorkingDirectory=/opt/dafeiyu/astrbot
 Environment=PYTHONUTF8=1 PYTHONIOENCODING=utf-8 TZ=Asia/Shanghai
+Environment=DAFEIYU_CLAUDE_RELAY_DIR=/opt/dafeiyu/private/claude_relay
+EnvironmentFile=-/opt/dafeiyu/private/astrbot.env
 ExecStart=/opt/dafeiyu/uv/bin/astrbot run
 Restart=always
 RestartSec=10

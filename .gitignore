@@ -13,6 +13,13 @@ data/
 *.whl
 *.img
 *.part
+*.tar.gz
+*.tgz
+settings-*.json
+profile.json
+cookies*.json
+*-auth*.json
+login.json
 *.bak*
 __pycache__/
 *.py[cod]

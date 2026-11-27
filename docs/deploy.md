@@ -34,6 +34,8 @@ export DAFEIYU_PRIVATE_PROFILE="$HOME/dafeiyu-private/profile.json"
 
 原机的 `/opt/dafeiyu/private/`、NapCat 登录状态、插件数据、记忆、书库和个人图片由机主另外保管。配置档只迁移设置。需要完整历史时，在停服后的文件副本或一致性快照上恢复原机的 `astrbot/data/`、私有文件和外部程序，然后核对插件目录与本次锁文件。已有真实数据的目录应保留，安装脚本只接受新的数据目录。
 
+**复原原机专用程序。** 私有程序补充包保留原机插件代码、原来的授权接入、旧版 NapCat 与漫造组件。程序包和配置档均由机主私存。先安装公开版本，再在尚未启动的新机器上校验并恢复程序补充包。归档结构、命令与目标目录见[私有复原说明](../deploy/recovery/README.md)。原训练机保存这两类文件的目录是 `/opt/dafeiyu/private/redeployment/`。
+
 ## 3. 安装和校验
 
 ```bash
@@ -52,7 +54,7 @@ Python 包与插件需要访问它们的公开来源。固定版本避免常规�
 
 1. 按 [NapCat 官方文档](https://napneko.github.io/) 准备 Linux QQ 和 NapCat，对照外部程序清单核验版本。服务模板约定 QQ 可执行文件为 `/home/agentuser/Napcat/opt/QQ/qq`。
 2. 在 NapCat 中配置 OneBot 11 反向 WebSocket 客户端，连接 `ws://127.0.0.1:6199/ws`，使用 array 消息格式。两侧填相同的 token。首次使用自己的 QQ 扫码。需要快速登录时把自己的 QQ 号写在 `/opt/dafeiyu/private/bot-qq.txt`。
-3. 没有采用私有配置档时，在 AstrBot 本机面板录入模型凭据和管理员账号，核对 Grok、MiMo、嵌入及插件提供方设置。账号信息与历史数据均留在运行目录。
+3. 没有采用私有配置档时，在 AstrBot 本机面板录入模型凭据和管理员账号，核对 Grok、MiMo、嵌入及插件提供方设置。systemd 从权限为 600 的 `/opt/dafeiyu/private/astrbot.env` 读取可选环境配置，包括 `XAI_API_KEY`。账号信息与历史数据均留在运行目录。
 4. 根据需要安装下列服务。命令按上面的默认账号和目录编写。目录或账号不同，先调整单元文件和插件中的本机路径。
 
 ```bash
