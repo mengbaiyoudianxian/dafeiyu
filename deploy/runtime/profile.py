@@ -28,8 +28,11 @@ def save_json(path, value):
 
 
 def outside_checkout(path):
-    if any((parent / ".git").exists() for parent in (path, *path.parents)):
-        raise ValueError("Use a private path outside all Git checkouts.")
+    for parent in (path, *path.parents):
+        marker = parent / ".git"
+        bare = (parent / "HEAD").is_file() and (parent / "objects").is_dir() and (parent / "refs").is_dir()
+        if marker.exists() or marker.is_symlink() or bare:
+            raise ValueError("Use a private path outside all Git repositories.")
 
 
 def capture(root, destination):
@@ -46,8 +49,12 @@ def capture(root, destination):
             rows[table] = list(db.execute(f"SELECT {', '.join(cols)} FROM {table}"))
     profile = {"format": 1, "core": core, "config": config, "rows": rows}
     descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-        json.dump(profile, handle, ensure_ascii=False)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(profile, handle, ensure_ascii=False)
+    except BaseException:
+        destination.unlink(missing_ok=True)
+        raise
 
 
 def load_private(path):

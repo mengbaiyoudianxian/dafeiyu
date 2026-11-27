@@ -47,6 +47,7 @@ def safe_path(path):
 def new_output(path):
     path = safe_path(path)
     if any((a / ".git").exists() or (a / ".git").is_symlink()
+           or ((a / "HEAD").is_file() and (a / "objects").is_dir() and (a / "refs").is_dir())
            for a in (path, *path.parents)):
         raise ValueError("Output must be outside a Git worktree")
     return path
