@@ -1,0 +1,45 @@
+{
+  "archives": {
+    "qq-deb": {
+      "filename": "linuxqq_3.2.34-53644_amd64.deb",
+      "sha256": "436c65e1dd28422e128a21cbddb5fe4e2e6c079d7f27fec2541e014d38cc336e",
+      "source": "https://qqdl.gtimg.cn/qqfile/QQNT/9.9.36/beta/9ee04bef/linuxqq_3.2.34-53644_amd64.deb"
+    },
+    "napcat-zip": {
+      "filename": "NapCat.Shell.zip",
+      "sha256": "02e5ff0f79916c1e04c81c1b4590056406fb4293f1f1300c955e71fd08b2829d",
+      "original_release": "https://github.com/NapNeko/NapCatQQ/releases/tag/v4.18.42",
+      "operator_supplied": true
+    },
+    "sherpa-tar": {
+      "filename": "sherpa-onnx-v1.13.8-linux-x64-shared-no-tts.tar.bz2",
+      "sha256": "d0f96c8b65c6cd0974fada22737e337de81bc8cd2abbec2e39caf358b1eec5fc",
+      "source": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.8/sherpa-onnx-v1.13.8-linux-x64-shared-no-tts.tar.bz2"
+    },
+    "sensevoice-tar": {
+      "filename": "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09.tar.bz2",
+      "sha256": "7305f7905bfcf77fa0b39388a313f3da35c68d971661a65475b56fb2162c8e63",
+      "source": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09.tar.bz2"
+    },
+    "twikit-wheel": {
+      "filename": "twikit-2.3.3-py3-none-any.whl",
+      "sha256": "0d745895bb243f84a1bbb8c9c821f165a0f60e20db27dee66fdb77d05af748fd",
+      "source": "https://files.pythonhosted.org/packages/4e/e0/69c125e558c429a58e6adcf87880b70baea980898eee4ea855e6d3b7822a/twikit-2.3.3-py3-none-any.whl"
+    }
+  },
+  "qq": {
+    "qq": "ae67432744180adc2b6567aa61b9575b14b28745f57b377a2853a1b744299ec2",
+    "resources/app/application.asar": "8a50d728a5e122e0ef08d73b01578b5124d40b93e7f17ffa16b92896daff5338"
+  },
+  "napcat": {
+    "napcat.mjs": "7967149b1c4f3d30e0506c842f84b7b925c2d361e3c9c75ebf0d4ff24dbdedaa",
+    "package.json": "abce2924f10c57cbd55fed0b2e59f6ffde6fd9d27b1ea7ebac26e77fa973c4c7"
+  },
+  "asr": {
+    "model.int8.onnx": "12ca1a2ae7ecf3e0019ef2822307ee0b5cadc9196569e379b4c4026f8205276d",
+    "tokens.txt": "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc",
+    "sherpa-onnx-v1.13.8-linux-x64-shared-no-tts/bin/sherpa-onnx-offline": "95fb2157ba97830a57197129b19fbd93416b5c24be0ce5a23c47c834d8766aba",
+    "sherpa-onnx-v1.13.8-linux-x64-shared-no-tts/lib/libsherpa-onnx-c-api.so": "c067b18cd746e49eb5016ee428196d21e1df14c14a3c54f128c1ac95f6aaed50",
+    "sherpa-onnx-v1.13.8-linux-x64-shared-no-tts/lib/libonnxruntime.so": "4b3607aebd1784b26b6f9b20e4bd974c7ab8287043e4d095cb7d2cb40b5e566e"
+  }
+}

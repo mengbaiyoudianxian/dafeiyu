@@ -1,0 +1,33 @@
+diff --git a/runtime.py b/runtime.py
+index 2c60ca204c43338e639d48f9f3f38504b3fd2649..8815e5c43e27154021ad48717119bb63951eba36 100644
+--- a/runtime.py
++++ b/runtime.py
+@@ -316,6 +316,18 @@ class MusicRuntime:
+ 
+     @staticmethod
+     def _download_http(url: str, headers: dict[str, str], destination: Path) -> tuple[str, int]:
++        last = None
++        for attempt in range(3):
++            try:
++                return MusicRuntime._download_http_once(url, headers, destination)
++            except Exception as exc:  # 大肥鱼补丁：断线/不完整就重下
++                last = exc
++                destination.unlink(missing_ok=True)
++                time.sleep(2 * (attempt + 1))
++        raise last
++
++    @staticmethod
++    def _download_http_once(url: str, headers: dict[str, str], destination: Path) -> tuple[str, int]:
+         request_headers = {"User-Agent": "BetterMusic/0.2.0", **headers}
+         request = urllib.request.Request(url, headers=request_headers)
+         with urllib.request.urlopen(request, timeout=45) as response:
+@@ -346,6 +358,9 @@ class MusicRuntime:
+                     if total > _MAX_AUDIO_BYTES:
+                         raise AudioError("音频文件超过250 MiB限制")
+                     output.write(block)
++        if length_header and total != int(length_header):
++            destination.unlink(missing_ok=True)
++            raise AudioError(f"音频下载不完整（{total}/{length_header} 字节）")
+         if total == 0:
+             destination.unlink(missing_ok=True)
+             raise AudioError("音频下载内容为空")

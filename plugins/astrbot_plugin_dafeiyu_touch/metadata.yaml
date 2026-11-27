@@ -1,0 +1,6 @@
+name: astrbot_plugin_dafeiyu_touch
+display_name: 大肥鱼的网页互动
+desc: 日程每一段自动画一张她此刻的场景图；拿面板钥匙的人可以在网页上摸她的头、把她拎起来，或直接跟她聊天，她按关系和心情真反应，并记进好感
+help: 接口只监听 Tailscale 内网，只接受主页机转发；网页聊天不经过指令系统，不能触发任何操作
+version: v0.1.0
+author: dafeiyu-local

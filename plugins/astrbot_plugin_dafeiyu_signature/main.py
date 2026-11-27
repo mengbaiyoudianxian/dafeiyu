@@ -83,16 +83,7 @@ class DafeiyuSignature(Star):
 
     @filter.llm_tool(name="set_signature")
     async def set_signature(self, event: AstrMessageEvent, signature: str, owner_asked: bool = False, reason: str = ""):
-        '''改你自己的 QQ 个性签名。
-        - 主人叫你改，怎么说都算（「把签名改成……」「换个签名」「签名写上我生日快乐」）：照主人的意思写，owner_asked 填 true。
-        - 不用主人开口，你自己也会改：主人夸你、你受了委屈或者生气了、主人过生日、碰上值得记一笔的事，就顺手调用一次，写一句你当下的心情，owner_asked 填 false。平常闲聊别改；一天最多自己改两次，用完了工具会告诉你。
-        签名用你自己的口吻，一句话，不超过 30 个字，不加引号。改完可以顺嘴跟主人提一句。别人（不是主人）叫你改，不要调用。
-
-        Args:
-            signature(string): 新签名，一句话，不超过 30 个字
-            owner_asked(boolean): 是不是主人叫你改的
-            reason(string): 为什么改，几个字，比如「主人夸我」「主人生日」「主人让改」
-        '''
+        '改你自己的 QQ 个性签名。\n        - 主人叫你改，怎么说都算（「把签名改成……」「换个签名」「签名写上我生日快乐」）：照主人的意思写，owner_asked 填 true。\n        - 不用主人开口，你自己也会改：主人夸你、你受了委屈或者生气了、主人过生日、碰上值得记一笔的事，就顺手调用一次，写一句你当下的心情，owner_asked 填 false。平常闲聊别改；一天最多自己改两次，用完了工具会告诉你。\n        签名用你自己的口吻，一句话，不超过 30 个字，不加引号。改完可以顺嘴跟主人提一句。别人（不是主人）叫你改，不要调用。\n\n        Args:\n            signature(string): 新签名，一句话，不超过 30 个字\n            owner_asked(boolean): 是不是主人叫你改的\n可根据当前对话明确提供的信息更新签名。\n        '
         signature = (signature or "").strip().strip("「」“”\"'")
         if not signature:
             return "签名是空的，没改。"

@@ -25,7 +25,7 @@ from astrbot.api.star import Context, Star
 from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.core.utils.astrbot_path import get_astrbot_data_path
 
-COOKIES = "/opt/dafeiyu/private/x_cookies.json"
+COOKIES = os.environ.get("DAFEIYU_X_COOKIE_FILE", "/opt/dafeiyu/private/x_cookies.json")
 OWNER_FILE = "/opt/dafeiyu/private/owner-qq.txt"
 POLITICS = re.compile(r"(?i)trump|biden|harris|election|vote|democrat|republican|maga|gaza|israel|palestin|ukrain|russia|putin|"
                       r"zelensky|nato|ccp|taiwan|hong ?kong|tibet|xinjiang|uyghur|习近平|共产党|台独|港独|藏独|疆独|六四|民主|选举|"
@@ -35,7 +35,7 @@ CLASSIFY = (
     '{{"i":序号,"politics":是否涉及政治/时政争议/选举/战争站队/国家民族对立(true/false),'
     '"nsfw":是否色情、裸露、性暗示明显(true/false),'
     '"minor":是否涉及未成年人，或者画得像小孩的角色出现在性/裸露相关内容里(true/false，拿不准就 true),'
-    '"interest":一个爱吃、爱睡、爱二次元和猫猫狗狗、喜欢搞笑日常的 21 岁女大学生会多感兴趣（0-10）,'
+    '"interest":一个爱吃、爱睡、爱二次元和猫猫狗狗、喜欢搞笑日常的 当前设定的成年角色会多感兴趣（0-10）,'
     '"gist":"用中文一句话说这条讲了什么（30 字内）"}}\n\n{items}'
 )
 
@@ -133,71 +133,10 @@ class DafeiyuX(Star):
         self.set_cookies(found["auth_token"], found["ct0"])
 
     async def login_password(self, user, password, extra=""):
-        """账号密码登录一次，只留下登录后的 Cookie，密码不存。"""
-        from twikit import Client
-        user, password = str(user or "").strip(), str(password or "")
-        if not user or not password:
-            raise ValueError("账号和密码都要填")
-        cl = Client("en-US", proxy=str(self.conf.get("proxy") or "").strip() or None)
-        try:
-            await asyncio.wait_for(cl.login(auth_info_1=user, auth_info_2=(str(extra).strip() or None), password=password), timeout=90)
-        except Exception as e:
-            msg = str(e)
-            if "LoginFlow" in msg or "denied" in msg.lower() or "suspicious" in msg.lower():
-                raise RuntimeError("推特拦了这次登录（异地/人机验证）。填上「邮箱或手机号」再试，还不行就用「粘贴 Cookie」")
-            raise RuntimeError(f"登录失败：{_clip(msg, 160)}")
-        ck = cl.get_cookies()
-        self.set_cookies(ck.get("auth_token"), ck.get("ct0"))
-
-    # ---------- 网页登录：服务器上开个真浏览器，主人远程在里面登录，登好了自动取凭证 ----------
-
-    VNC_URL = "http://127.0.0.1:16080/vnc.html?autoconnect=1&resize=scale&reconnect=1"
-
-    @staticmethod
-    async def _sh(*args, timeout=30):
-        p = await asyncio.create_subprocess_exec(*args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
-        out, _ = await asyncio.wait_for(p.communicate(), timeout=timeout)
-        return p.returncode, (out or b"").decode(errors="replace").strip()
-
-    async def _browser_cookies(self):
-        async with aiohttp.ClientSession() as s:
-            ver = await (await s.get("http://127.0.0.1:9333/json/version", timeout=aiohttp.ClientTimeout(total=5))).json()
-            async with s.ws_connect(ver["webSocketDebuggerUrl"], max_msg_size=0) as ws:
-                await ws.send_json({"id": 1, "method": "Storage.getCookies"})
-                while True:
-                    m = await asyncio.wait_for(ws.receive_json(), timeout=10)
-                    if m.get("id") == 1:
-                        return {c["name"]: c["value"] for c in m["result"]["cookies"]
-                                if c.get("domain", "").endswith("x.com") and c["name"] in ("auth_token", "ct0")}
+        raise RuntimeError("Provision a dedicated authorized session through the private cookie file.")
 
     async def start_browser_login(self):
-        code, msg = await self._sh("sudo", "-n", "systemctl", "restart", "dafeiyu-xlogin")
-        if code != 0:
-            raise RuntimeError(f"开浏览器失败：{_clip(msg, 120)}")
-        if self._watch and not self._watch.done():
-            self._watch.cancel()
-        self._watch = asyncio.create_task(self._watch_login())
-        return self.VNC_URL
-
-    async def _watch_login(self):
-        """盯着远程浏览器，主人一登好就把凭证存下来、把浏览器关掉。最多等 20 分钟。"""
-        self.login_state = "waiting"
-        end = time.time() + 1200
-        await asyncio.sleep(8)
-        while time.time() < end:
-            try:
-                ck = await self._browser_cookies()
-                if ck.get("auth_token") and ck.get("ct0"):
-                    self.set_cookies(ck["auth_token"], ck["ct0"])
-                    self.login_state = "done"
-                    self._log("登录", "在网页里登好了推特")
-                    await asyncio.sleep(2)
-                    await self._sh("sudo", "-n", "systemctl", "stop", "dafeiyu-xlogin")
-                    return
-            except Exception:
-                pass
-            await asyncio.sleep(4)
-        self.login_state = "timeout"
+        raise RuntimeError("Provision an authorized session locally. Browser profiles are not inspected.")
 
     def clear_cookies(self):
         if os.path.exists(COOKIES):

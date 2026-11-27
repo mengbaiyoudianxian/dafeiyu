@@ -691,18 +691,24 @@ class DafeiyuTieba(Star):
         await asyncio.sleep(random.uniform(a, b))
 
     async def _tb_api(self, path, fields):
-        """贴吧客户端接口（aiotieba 4.8 把回帖/发帖拿掉了，这里直接按客户端协议发）。"""
+        """Send an optional write through the operator's authorized local adapter."""
         import aiohttp
-        bduss, _ = self._cookie()
-        if not bduss:
-            raise RuntimeError("贴吧没登录")
-        data = {"BDUSS": bduss, "_client_type": "2", "_client_version": "12.57.4.2", "_phone_imei": "000000000000000",
-                "net_type": "1", "timestamp": str(int(time.time() * 1000)), **{k: str(v) for k, v in fields.items()}}
-        data["sign"] = hashlib.md5(("".join(f"{k}={data[k]}" for k in sorted(data)) + "tiebaclient!!!").encode()).hexdigest().upper()
-        async with aiohttp.ClientSession() as s:
-            async with s.post("http://c.tieba.baidu.com" + path, data=data, timeout=aiohttp.ClientTimeout(total=20),
-                              headers={"User-Agent": "bdtb for Android 12.57.4.2"}) as r:
-                return await r.json(content_type=None)
+        from urllib.parse import urlsplit
+
+        endpoint = os.environ.get("DAFEIYU_TIEBA_WRITE_ADAPTER", "").strip()
+        if not endpoint:
+            raise RuntimeError("Configure an authorized local Tieba write adapter.")
+        u = urlsplit(endpoint)
+        if u.scheme not in ("http", "https") or u.hostname not in ("localhost", "127.0.0.1", "::1"):
+            raise RuntimeError("The Tieba write adapter must be a loopback HTTP(S) endpoint.")
+        payload = {k: v for k, v in fields.items() if k.lower() not in {"tbs", "bduss", "stoken", "sign"}}
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                endpoint, json={"operation": path, "fields": payload},
+                allow_redirects=False, timeout=aiohttp.ClientTimeout(total=20),
+            ) as response:
+                response.raise_for_status()
+                return await response.json(content_type=None)
 
     async def _tbs(self):
         import aiohttp

@@ -1,0 +1,47 @@
+{
+  "scene_enable": {
+    "description": "日程每段自动画场景图",
+    "type": "bool",
+    "default": true
+  },
+  "keep_days": {
+    "description": "场景图保留几天",
+    "type": "int",
+    "default": 7
+  },
+  "listen_host": {
+    "description": "接口监听地址（Tailscale 内网）",
+    "type": "string",
+    "default": "127.0.0.1"
+  },
+  "listen_port": {
+    "description": "接口端口",
+    "type": "int",
+    "default": 16290
+  },
+  "allow_peer": {
+    "description": "只接受这些地址来的请求（腾讯主页机的 Tailscale 地址，逗号分隔）",
+    "type": "string",
+    "default": "127.0.0.1"
+  },
+  "touch_reply_gap": {
+    "description": "触碰反应最短间隔（秒）",
+    "type": "float",
+    "default": 6
+  },
+  "touch_judge_gap": {
+    "description": "触碰计入好感的最短间隔（秒）",
+    "type": "float",
+    "default": 90
+  },
+  "chat_gap": {
+    "description": "网页聊天每句最短间隔（秒）",
+    "type": "float",
+    "default": 3
+  },
+  "chat_daily": {
+    "description": "每人每天网页聊天上限",
+    "type": "int",
+    "default": 200
+  }
+}

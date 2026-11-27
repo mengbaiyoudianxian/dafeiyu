@@ -2,9 +2,7 @@
   "admin_users": [],
   "friend_settings": {
     "enable": true,
-    "session_list": [
-      "大肥鱼:FriendMessage:"
-    ],
+    "session_list": [],
     "persona_id": "",
     "auto_trigger_settings": {
       "enable_auto_trigger": true,

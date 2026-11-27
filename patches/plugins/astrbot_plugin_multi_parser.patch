@@ -1,0 +1,19 @@
+diff --git a/services/parsing/coordinator.py b/services/parsing/coordinator.py
+index 7b55fb86a3346a3ac7eddcba0f16fe3b51a47f49..c5f42da84d29c7b0acb881e1f880808277fc3f15 100644
+--- a/services/parsing/coordinator.py
++++ b/services/parsing/coordinator.py
+@@ -164,12 +164,12 @@ class ParseCoordinator:
+             except CookieAccessError as exc:
+                 restore_send_state = True
+                 logger.warning(f"{parser.name} Cookie 访问失败: {exc}")
+-                yield event.plain_result(str(exc))
++                # 巡检#36：解析失败不往群里发插件报错，交给她自己接话
+                 return
+             except Exception as exc:
+                 restore_send_state = True
+                 logger.warning(f"{parser.name} 解析失败: {exc}")
+-                yield event.plain_result(f"{parser.name} 解析失败: {exc}")
++                # 巡检#36：解析失败不往群里发插件报错，交给她自己接话
+                 return
+             finally:
+                 if result is not None:

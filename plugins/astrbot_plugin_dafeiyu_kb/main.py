@@ -40,6 +40,7 @@ from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.core.utils.astrbot_path import get_astrbot_data_path
 
 from .store import Store, overlap
+from .kg import KG
 
 DATA = get_astrbot_data_path()
 PD = os.path.join(DATA, "plugin_data")
@@ -60,7 +61,7 @@ MEME_JUDGE = (
     '"minor":画面里有没有未成年人或幼态角色并且带一点性暗示（true/false）,'
     '"cat":"从这些里选一个最贴的分类键：' + ", ".join(f"{k}({v})" for k, v in CATS.items()) + '"}'
 )
-DIGEST = """你是「大肥鱼」（21 岁女大学生，群里的一员），在整理自己对 QQ 群「{gname}」的记忆。
+DIGEST = """你是「大肥鱼」（当前设定的成年角色，群里的一员），在整理自己对 QQ 群「{gname}」的记忆。
 下面是这个群新的一段聊天（[时间] 名字(QQ号)：内容；名字是「大肥鱼」或标了(我)的是你自己说的）：
 {chat}
 
@@ -76,7 +77,7 @@ DIGEST = """你是「大肥鱼」（21 岁女大学生，群里的一员），�
 规则：只写从记录里真看得出来的，不编；没有就给空列表；people 不写你自己，只写这段里说过话并且有新认识的人；
 话题和事件别写成流水账，挑值得以后想起来的。"""
 
-LEARN = """你是「大肥鱼」（21 岁女大学生，群里的一员）。你在琢磨 QQ 群「{gname}」的人是怎么说话的，想学会跟他们一个味儿。
+LEARN = """你是「大肥鱼」（当前设定的成年角色，群里的一员）。你在琢磨 QQ 群「{gname}」的人是怎么说话的，想学会跟他们一个味儿。
 下面是这个群的一段聊天（[时间] 名字(QQ号)：内容；标了(我)的是你自己说的，只用来看前后文，别学你自己）：
 {chat}
 
@@ -93,6 +94,20 @@ LEARN = """你是「大肥鱼」（21 岁女大学生，群里的一员）。你
 {{"sayings":[{{"key":"说法本身或一个短标签（10 字内）","type":"阴阳/嘲讽/暗指/谐音/段子/玩梗/互损/口头禅/打字习惯/接话","meaning":"字面之外真正的意思、潜台词","use":"什么场合、对什么关系的人用，用了是什么效果","example":"一句原话（照抄记录里的）","who":"常这么说的人名，多人用逗号分隔"}}],
  "style":"把你对这个群说话风格的感觉重写一遍（合并旧的）：句子多长、标点、常用词、氛围是互损还是温和、大家怎么对待新人和机器人，3~5 句"}}
 规则：只写记录里真有的，不编；没什么值得学的就给空列表；涉及政治、未成年、露骨色情的不收；你自己说的话不算。"""
+
+
+KNOW = """你在帮「大肥鱼」整理 QQ 群「{gname}」里的真干货，让她以后被问到时能用上群里真讨论过的东西。
+下面是这个群的一段聊天（[时间] 名字(QQ号)：内容；标了(我)的是大肥鱼自己说的，她说的不一定对，只当上下文）：
+{chat}
+
+她之前已经记下的知识点（同一件事有新进展就用同一个 key 补充，别重复）：{known}
+
+把这段里有用的技术/实用知识提炼出来：手机刷机/解锁/root、系统和软件版本、AI 和 API 用法、编程、网络、数码硬件参数和价格、
+游戏机制和配置、实测结果和数据、踩过的坑、靠谱/不靠谱的渠道和工具、某个问题最后怎么解决的。
+只输出一个 JSON：
+{{"knowledge":[{{"key":"知识点主题（15 字内，像「小米17解BL等待时间」）","fact":"具体内容：结论、步骤、参数、版本、价格、条件，写清楚到能直接拿来回答别人，2~5 句","who":"谁说的/谁实测的","sure":"实测/群友说法/有争议/后来被推翻"}}]}}
+规则：只写记录里真有的具体信息，不编、不补充你自己的知识；闲聊、玩梗、情绪、没结论的提问不算；
+不收：政治、色情、未成年、外挂作弊和盗号、诈骗洗钱等违法门路、别人的手机号住址等隐私；没有就给空列表。"""
 
 
 def _clip(s, n):
@@ -182,7 +197,9 @@ class DafeiyuKB(Star):
     # ---------- 生命周期 ----------
     @filter.on_astrbot_loaded()
     async def start(self):
-        self.tasks = [asyncio.create_task(self._loop()), asyncio.create_task(self._meme_worker()),
+        self.kg = None
+        self._kg_ready = False
+        self.tasks = [asyncio.create_task(self._loop()), asyncio.create_task(self._kg_loop()), asyncio.create_task(self._meme_worker()),
                       asyncio.create_task(self._meme_worker())]
 
     async def terminate(self):
@@ -457,6 +474,170 @@ class DafeiyuKB(Star):
         logger.info(f"[dafeiyu_kb] 学了群「{gname}」{len(rows)} 条怎么说话：新说法 {n} 个")
         return len(rows) >= chunk
 
+    # ---------- 知识图谱（专业整理）----------
+    async def _kg_llm(self, prompt):
+        pid = str(self.conf.get("kg_provider_id") or "chatgpt/gpt-6.2-sol")
+        prov = self.context.get_provider_by_id(pid) or self.context.get_using_provider()
+        resp = await asyncio.wait_for(prov.text_chat(prompt=prompt, session_id=uuid.uuid4().hex, persist=False), timeout=900)
+        t = getattr(resp, "completion_text", "") or ""
+        a, b = t.find("{"), t.rfind("}")
+        return json.loads(t[a:b + 1]) if a >= 0 else {}
+
+    async def _kg_embed(self, texts):
+        prov = self.context.get_provider_by_id(str(self.conf.get("embedding_provider_id") or "大肥鱼记忆-硅基流动"))
+        if prov is None:
+            provs = self.context.get_all_embedding_providers()
+            prov = provs[0] if provs else None
+        if prov is None:
+            raise RuntimeError("没有向量模型")
+        return await asyncio.wait_for(prov.get_embeddings(texts), timeout=120)
+
+    async def _kg_loop(self):
+        await asyncio.sleep(90)
+        try:
+            self.kg = KG(os.path.join(self.dir, "kg.db"), self.db, self._kg_llm, self._kg_embed,
+                         log=lambda m: logger.info(f"[dafeiyu_kb/kg] {m}"), me=self.me or "")
+            self._kg_ready = bool(self.kg.get("caught_up"))
+        except Exception as e:
+            logger.warning(f"[dafeiyu_kb/kg] 打开知识图谱失败：{e!r}")
+            return
+        tick = 0
+        while True:
+            try:
+                await self._kg_due()
+                last = self.kg.get("eval_last") or {}
+                if self._kg_ready and time.time() - float(last.get("t") or 0) > 86400:
+                    made = await self.kg.build_eval(40)
+                    rate, _ = await self.kg.run_eval()
+                    logger.info(f"[dafeiyu_kb/kg] 检索自测：新出题 {made}，命中率 {rate:.0%}（{self.kg.stats()}）")
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.warning(f"[dafeiyu_kb/kg] 整理出错：{e!r}")
+            tick += 1
+            await asyncio.sleep(600)
+
+    async def _kg_due(self):
+        cur = self.kg.get("cursor", {}) or {}
+        chunk = int(self.conf.get("kg_chunk") or 150)
+        sem = asyncio.Semaphore(int(self.conf.get("kg_parallel") or 3))
+        behind = []
+
+        async def one(g):
+            gid, gname = g["gid"], g["gname"] or self.gnames.get(gid, gid)
+            ahead = int(self.conf.get("kg_ahead") or 3)
+            async with sem:
+                while True:
+                    last_t = float((self.kg.get("last_ingest", {}) or {}).get(gid) or 0)
+                    batches, after = [], int(cur.get(gid, 0))
+                    for _ in range(ahead):
+                        rows = self.db.raw_after(gid, after, chunk)
+                        if not rows:
+                            break
+                        batches.append(sorted(rows, key=lambda r: r["ts"]))
+                        after = max(r["id"] for r in rows)
+                        if len(rows) < chunk:
+                            break
+                    if not batches:
+                        break
+                    if len(batches) == 1 and len(batches[0]) < 40 and not (time.time() - last_t > 4 * 3600 and len(batches[0]) >= 5):
+                        break
+                    t0 = time.time()
+                    forgot = self.db.forgotten()
+                    ctxs = await asyncio.gather(*(self.kg.extract(gid, gname, b, forgot=forgot, me=self.me) for b in batches),
+                                                return_exceptions=True)
+                    failed = False
+                    for b, ctx in zip(batches, ctxs):
+                        if isinstance(ctx, Exception):
+                            logger.warning(f"[dafeiyu_kb/kg] 整理群「{gname}」失败：{type(ctx).__name__} {ctx}")
+                            failed = True
+                            break
+                        try:
+                            st = await self.kg.commit(ctx) if ctx else {}
+                        except Exception as e:
+                            logger.warning(f"[dafeiyu_kb/kg] 入库群「{gname}」失败：{type(e).__name__} {e}")
+                            failed = True
+                            break
+                        cur[gid] = max(r["id"] for r in b)
+                        self.kg.put("cursor", cur)
+                        li = self.kg.get("last_ingest", {}) or {}
+                        li[gid] = time.time()
+                        self.kg.put("last_ingest", li)
+                        logger.info(f"[dafeiyu_kb/kg] 群「{gname}」{len(b)} 条（{len(batches)} 段并行 {int(time.time() - t0)}s）：{st}")
+                    if failed:
+                        behind.append(gid)
+                        break
+                    if len(batches) < ahead or len(batches[-1]) < chunk:
+                        break
+                try:
+                    await self.kg.digest_due(gid, gname)
+                except Exception as e:
+                    logger.warning(f"[dafeiyu_kb/kg] 小结失败：{e!r}")
+
+        await asyncio.gather(*(one(g) for g in self.db.groups()))
+        if not behind and not self._kg_ready:
+            self.kg.put("caught_up", time.time())
+            self._kg_ready = True
+            logger.info(f"[dafeiyu_kb/kg] 全部历史整理完：{self.kg.stats()}")
+
+    def _kg_scopes(self, gid, scopes, owner):
+        if gid:
+            return [gid]
+        return None if owner else [s for s in scopes if s != "web"]
+
+    # ---------- 提炼干货：从全部历史里提炼技术/实用知识 ----------
+    async def _know_due(self, force_old=False):
+        cur = self.db.get("know_cursor", {}) or {}
+        need = int(self.conf.get("know_min_new") or 80)
+        for g in self.db.groups():
+            gid = g["gid"]
+            key = f"know:{gid}"
+            if key in self.digesting:
+                continue
+            c = self.db.raw_count_after(gid, int(cur.get(gid, 0)))
+            if c["n"] >= need or (force_old and c["n"] >= 15):
+                self.digesting.add(key)
+                try:
+                    for _ in range(40):
+                        if not await self._know(gid, g["gname"] or self.gnames.get(gid, gid)):
+                            break
+                finally:
+                    self.digesting.discard(key)
+
+    async def _know(self, gid, gname):
+        cur = self.db.get("know_cursor", {}) or {}
+        chunk = int(self.conf.get("know_chunk") or 300)
+        rows = self.db.raw_after(gid, int(cur.get(gid, 0)), chunk)
+        if len(rows) < 15:
+            return False
+        rows_t = sorted(rows, key=lambda r: r["ts"])
+        chat = "\n".join(f"[{datetime.fromtimestamp(r['ts']).strftime('%m-%d %H:%M')}] "
+                         f"{'大肥鱼(我)' if r['self'] else r['uname']}({'' if r['self'] else r['uid']})：{_clip(r['text'], 400)}"
+                         for r in rows_t)
+        known = "；".join(f"「{k['title']}」" for k in self.db.items_of(gid, "知识", 200)) or "（还没有）"
+        try:
+            res = await self._llm(KNOW.format(gname=gname, chat=chat, known=known), timeout=3600)
+        except Exception as e:
+            logger.warning(f"[dafeiyu_kb] 提炼群「{gname}」干货失败：{type(e).__name__} {e}")
+            return False
+        n = 0
+        day = datetime.fromtimestamp(rows_t[-1]["ts"]).strftime("%m-%d")
+        for k in res.get("knowledge") or []:
+            t = _clip(str(k.get("key") or "").strip(), 24)
+            if not t or not str(k.get("fact") or "").strip():
+                continue
+            ikey = f"know:{gid}:{t}"
+            body = f"{k['fact']}\n（{day} {k.get('who') or '群友'}，{k.get('sure') or '群友说法'}）"
+            old = self.db.item(ikey)
+            if old and old["body"] and str(k["fact"])[:30] not in old["body"]:
+                body = _clip(old["body"], 700) + "\n后来：" + body
+            self.db.upsert("知识", gid, ikey, t, body, ts=rows_t[-1]["ts"])
+            n += 1
+        cur[gid] = max(r["id"] for r in rows)
+        self.db.put("know_cursor", cur)
+        logger.info(f"[dafeiyu_kb] 提炼了群「{gname}」{len(rows)} 条里的干货：{n} 条")
+        return len(rows) >= chunk
+
     async def _digest(self, gid, gname):
         cur = self.db.get("cursor", {}) or {}
         after = int(cur.get(gid, 0))
@@ -635,7 +816,9 @@ class DafeiyuKB(Star):
             return gid, [gid, "web"]
         if str(event.get_sender_id()) == self._owner():
             return "", [g["gid"] for g in self.db.groups()] + ["web"]
-        return "", ["web"]
+        # _private_kb_v1：私聊别人时，只看他自己待过（说过话）的群
+        mine = [r["gid"] for r in self.db.q("select distinct gid from raw where uid=? and gid!=''", (str(event.get_sender_id()),))]
+        return "", mine + ["web"]
 
     @filter.on_llm_request(priority=-10)
     async def inject(self, event: AstrMessageEvent, req: ProviderRequest):
@@ -645,8 +828,32 @@ class DafeiyuKB(Star):
                 return
             gid, scopes = self._scopes(event)
             uid = str(event.get_sender_id())
+            if not gid and uid == self._owner():
+                writing = self.db.search_items(msg, ["private_writing"], kinds=["写作参考"], limit=3)
+                if writing:
+                    req.system_prompt = (req.system_prompt or "") + (
+                        "\n\n【私聊写作参考】只在当前对话确实适用时参考，保持大肥鱼自己的口吻。\n"
+                        + "\n".join(f"- {h['title']}：{h['body']}" for h in writing)
+                    )
             lines = []
-            if gid:
+            kg_prof = ""
+            if self._kg_ready and self.kg:
+                try:
+                    owner = uid == self._owner()
+                    r = await self.kg.search(msg, self._kg_scopes(gid, scopes, owner), viewer=uid, owner=owner, k=6)
+                    kg_prof = self.kg.profile_text(uid, viewer=uid, owner=owner)
+                    if kg_prof:
+                        lines.append(f"- 正在跟你说话的 {_clip(kg_prof, 300)}")
+                    for u in r["people"]:
+                        if u != uid:
+                            lines.append(f"- 相关的人 {_clip(self.kg.profile_text(u, public_only=True), 200)}")
+                    for f in r["facts"]:
+                        lines.append(f"- [知识] {_clip(self.kg.fact_line(f, self.gnames), 220)}")
+                    for e in r["episodes"]:
+                        lines.append(f"- [聊过] {datetime.fromtimestamp(e['t0']).strftime('%m-%d')} {e['title']}：{_clip(e['summary'], 160)}")
+                except Exception as e:
+                    logger.debug(f"[dafeiyu_kb/kg] 检索失败：{e!r}")
+            if gid and not kg_prof:
                 me = self.db.item(f"person:{gid}:{uid}")
                 if me:
                     lines.append(f"- 正在跟你说话的 {me['title']}：{_clip(me['body'], 220)}")
@@ -654,8 +861,14 @@ class DafeiyuKB(Star):
                     if p["person"] != uid and (p["title"] and p["title"] in msg or f"@{p['person']}" in msg):
                         lines.append(f"- 提到的 {p['title']}：{_clip(p['body'], 160)}")
             n = int(self.conf.get("inject_items") or 8)
-            hits = self.db.search_items(msg, scopes, kinds=["梗", "话题", "事件", "贴吧", "推特", "B站"], limit=n,
-                                        exclude_flags=("sensitive", "politics") if gid else ("politics",))
+            if not gid and not kg_prof:  # 私聊：想起他在各个群里是什么样的人
+                for p in self.db.q("select * from items where kind='群友' and person=? order by updated desc limit 3", (uid,)):
+                    gn = self.gnames.get(p["scope"], p["scope"])
+                    lines.append(f"- 正在跟你私聊的 {p['title']}（你们都在群「{gn}」）：{_clip(p['body'], 200)}")
+            owner = uid == self._owner()
+            old_kinds = ["梗", "贴吧", "推特", "B站"] if self._kg_ready else ["知识", "梗", "话题", "事件", "贴吧", "推特", "B站"]
+            hits = self.db.search_items(msg, scopes, kinds=old_kinds, limit=n,
+                                        exclude_flags=("sensitive", "politics") if (gid or not owner) else ("politics",))
             hits = [h for h in hits if overlap(msg, h["title"] + h["body"]) >= 0.12]
             for h in hits:
                 where = "" if h["scope"] in (gid, "web") else f"（在群「{self.gnames.get(h['scope'], h['scope'])}」）"
@@ -724,6 +937,26 @@ class DafeiyuKB(Star):
             rows = self.db.search_raw(q, raw_gids, limit=12)
             out["said"] = [f"{_when(r['ts'])} {'' if gid else '「' + (r['gname'] or r['gid']) + '」'}"
                            f"{'我' if r['self'] else r['uname']}：{_clip(r['text'], 160)}" for r in rows]
+        if self.kg:
+            try:
+                uid = str(event.get_sender_id())
+                owner = uid == self._owner()
+                r = await self.kg.search(q, self._kg_scopes(gid, scopes, owner), viewer=uid, owner=owner, k=10, k_ep=5)
+                if r["facts"]:
+                    out["facts"] = [self.kg.fact_line(f, self.gnames) for f in r["facts"]]
+                if r["episodes"]:
+                    out["talks"] = [f"{datetime.fromtimestamp(e['t0']).strftime('%m-%d')} {self.gnames.get(e['gid'], '')} {e['title']}：{e['summary']}"
+                                    for e in r["episodes"]]
+                ppl = list(r["people"])
+                if who:
+                    for eid in self.kg._mentioned(who):
+                        if eid.startswith("p:") and eid[2:] not in ppl:
+                            ppl.insert(0, eid[2:])
+                prof = [self.kg.profile_text(u, viewer=uid, owner=owner) for u in ppl[:4]]
+                if any(prof):
+                    out["profiles"] = [p for p in prof if p]
+            except Exception as e:
+                logger.debug(f"[dafeiyu_kb/kg] 回忆检索失败：{e!r}")
         if not any(out.values()):
             return json.dumps({"found": False, "note": "记忆里没找到相关的，照实说想不起来/没印象"}, ensure_ascii=False)
         out["note"] = "这些是你自己记得的事，用你的口吻自然地说，别念清单，别暴露「记录」「数据库」这种词。"
@@ -754,4 +987,6 @@ class DafeiyuKB(Star):
         '''
         uid = str(event.get_sender_id())
         n = self.db.forget(uid)
+        if self.kg:
+            self.kg.forget(uid)
         return json.dumps({"done": True, "removed": n, "note": "已经不记他了，用你的口吻答应一声"}, ensure_ascii=False)

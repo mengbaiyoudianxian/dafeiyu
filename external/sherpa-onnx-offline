@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+asr_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+runtime="$asr_dir/sherpa-onnx-v1.13.8-linux-x64-shared-no-tts"
+export LD_LIBRARY_PATH="$runtime/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+exec "$runtime/bin/sherpa-onnx-offline" "$@"

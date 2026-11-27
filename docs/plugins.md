@@ -1,5 +1,7 @@
 # 插件清单
 
+当前安装版本、源提交及文件校验以 [inventory.json](../inventory.json) 为准。运行 [install_plugins.py](../install_plugins.py) 可在空目录重建完整插件集。下文保留插件功能介绍。
+
 > 这份清单由 `scripts/export_repo.py` 从服务器上实际装着的插件自动生成。
 
 ## 自写插件

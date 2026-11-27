@@ -1,0 +1,53 @@
+{
+  "upstream": {
+    "filename": "astrbot-4.29.4-py3-none-any.whl",
+    "sha256": "189e9b07bff6fb91fe0ebaa3e9273af6b028f190023dcc43cbbbe4d3ec00a5b5",
+    "url": "https://files.pythonhosted.org/packages/b2/82/e7834f2b0f3347c2f7bef532ee7ecfea780a79df143016efd9442ab65075/astrbot-4.29.4-py3-none-any.whl"
+  },
+  "wheel_member_count": 861,
+  "build_tag": "1dafeiyu",
+  "rebuilt_sha256": "e0ad64000b3224183b8068336c0339278a085bf91f4a92cbbb1ecd21158d8e66",
+  "patch_sha256": "ddadae74d3142a18faec05de1396d2fb3bbd81be652949a8a01ef70554f32d23",
+  "files": [
+    {
+      "path": "astrbot/core/astr_agent_tool_exec.py",
+      "before_sha256": "4af653ba8abea62958124d10dd2cf56e1f14d1098ff1583865660d378bf51d04",
+      "after_sha256": "114ef21f79685941d83208e356af264624b397813d2901ca31d604a0c78a9e42"
+    },
+    {
+      "path": "astrbot/core/astr_main_agent.py",
+      "before_sha256": "081f2fda0924fdca04cd4eaffec22a50b158507a958406b55e2d89c64011245f",
+      "after_sha256": "7af947ca27a6bf262a48f3a22b8373c797dcfbae239c5e3b0c0f45d7d9cd267e"
+    },
+    {
+      "path": "astrbot/core/astr_main_agent_resources.py",
+      "before_sha256": "3ec82b8ed3a599544ad6c9dbfc1c9dad211ef593bceb9a89162fe4e647a08022",
+      "after_sha256": "2f0e92b66a7447a478933259144198b42f13adb599741a907f7cc8bc101aca8e"
+    },
+    {
+      "path": "astrbot/core/config/agent_runner.py",
+      "before_sha256": "1d2e105c003ce58a19265fcb274e529193d9302ed2ed669acd27711acf82c2aa",
+      "after_sha256": "ddde13f21bca24e2de72ad2b9d694daca4bbf4b2a215dc2ed9faacbb564c7469"
+    },
+    {
+      "path": "astrbot/core/config/default.py",
+      "before_sha256": "1dc09f9266833feea9e85d435c8acb6aab2d0924e84cdb8c5a771c28e4a63b98",
+      "after_sha256": "77645163782e80ac1b4697d3fd08efe9aa0ad9db3fe0ae36b42f8afa45f4ea0e"
+    },
+    {
+      "path": "astrbot/core/cron/manager.py",
+      "before_sha256": "a82f206c78d844e796426f36901887138d32f83fdf5c0c84c9452feba26a97a2",
+      "after_sha256": "7c703aa488bb5aa39036a141101963887dba63a056dd56aac65d9a1cb9dd04cf"
+    },
+    {
+      "path": "astrbot/core/pipeline/process_stage/method/agent_sub_stages/internal.py",
+      "before_sha256": "dbe18dec7382d788432e089b513c009dda038a9fc0225ca1fc1e2b2b8c8bd8dd",
+      "after_sha256": "f1c4f857f14a8858d6365771df6a78399fa33a6e5e7341ffe7030c50be3026de"
+    },
+    {
+      "path": "astrbot/core/utils/migra_helper.py",
+      "before_sha256": "a117961dee7288ea57d4715979a4b8bfaa76be9addda9175ef619bf4550093fb",
+      "after_sha256": "16bd6c958844ab4d33534a1ea0030d91b93afbbf75f965e0205a1361bbc5bcfe"
+    }
+  ]
+}

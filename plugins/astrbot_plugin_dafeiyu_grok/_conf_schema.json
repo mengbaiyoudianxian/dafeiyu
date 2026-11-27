@@ -1,0 +1,34 @@
+{
+  "self_looks": {
+    "description": "她画自己时用的长相",
+    "type": "text",
+    "default": ""
+  },
+  "image_model": {
+    "description": "画图用哪个模型",
+    "type": "string",
+    "default": "grok-imagine-image-2.0",
+    "hint": "失败会自动退回 grok-imagine-image"
+  },
+  "image_daily_limit": {
+    "description": "每天最多画几张图",
+    "type": "int",
+    "default": 30
+  },
+  "video_model": {
+    "description": "做视频用哪个模型",
+    "type": "string",
+    "default": "grok-imagine-video-1.5-lite",
+    "hint": "lite 快、省额度；想要更好看换 grok-imagine-video-1.5"
+  },
+  "video_seconds": {
+    "description": "视频几秒",
+    "type": "int",
+    "default": 5
+  },
+  "video_daily_limit": {
+    "description": "每天最多做几个视频",
+    "type": "int",
+    "default": 10
+  }
+}

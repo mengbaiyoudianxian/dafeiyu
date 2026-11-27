@@ -1,0 +1,5 @@
+name: astrbot_plugin_dafeiyu_self
+display_name: 大肥鱼的脑子
+desc: 她知道自己用什么模型、订阅号套餐/到期/额度，能自己切模型和订阅号
+version: v0.1.0
+author: dafeiyu-local

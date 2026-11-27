@@ -1,4 +1,4 @@
 {
-  "vision_provider_id": "",
+  "vision_provider_id": "chatgpt/gpt-6.2-sol",
   "daily_limit": 40
 }

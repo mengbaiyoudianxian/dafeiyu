@@ -1,0 +1,15 @@
+[Unit]
+Description=Forward the dashboard on the configured tailnet address
+After=tailscaled.service dafeiyu-astrbot.service
+
+[Service]
+EnvironmentFile=/opt/dafeiyu/private/dashboard.env
+ExecStart=/usr/bin/socat TCP-LISTEN:16186,bind=${TAILNET_IP},reuseaddr,fork TCP:127.0.0.1:6185
+Restart=on-failure
+RestartSec=5
+DynamicUser=yes
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target
+

@@ -1,0 +1,1823 @@
+diff --git a/_conf_schema.json b/_conf_schema.json
+index 0212b94da8c6bd69bf62fedb70b1fab6dbe04b99..57b657facc5c595bef03c212007e28e7cd747329 100644
+--- a/_conf_schema.json
++++ b/_conf_schema.json
+@@ -55,6 +55,23 @@
+                 "_special": "select_provider",
+                 "default": ""
+             },
++            "llm_fallback_provider_ids": {
++                "description": "备用 LLM 模型列表",
++                "hint": "按顺序尝试的备用 Provider ID（JSON 数组，如 [\"openai_gpt-4o\",\"gemini-2.5-pro\"]）。主 Provider 超时、限流（429）、5xx 或鉴权失败时自动切换；解析/格式错误不切换。留空不启用回退。",
++                "type": "list",
++                "default": []
++            },
++            "llm_call_timeout_seconds": {
++                "description": "单次 LLM 调用超时（秒）",
++                "hint": "每个 Provider 单次调用的超时时间，超时后视为不可用并切换到下一个 Provider。（允许范围：5–600）",
++                "type": "int",
++                "default": 60,
++                "slider": {
++                    "min": 5,
++                    "max": 600,
++                    "step": 1
++                }
++            },
+             "llm_stream_mode": {
+                 "description": "使用流式调用",
+                 "hint": "记忆处理调用 LLM 的方式。auto（默认）：优先非流式，遇到“模型不支持非流式请求”错误时自动改用流式；always：始终流式（适用于仅接受 stream=true 的服务）；never：始终非流式（旧行为）。",
+@@ -818,6 +835,48 @@
+             }
+         }
+     },
++    "channel_memory": {
++        "invisible": true,
++        "description": "群聊频道公共记忆",
++        "hint": "开启后群聊总结写入当前群共享的频道作用域，群内任何成员提问都能召回；召回时联合当前作用域与频道作用域，共享 top_k 预算。关闭时行为与旧版一致。",
++        "type": "object",
++        "items": {
++            "enabled": {
++                "description": "启用频道公共记忆",
++                "hint": "群聊总结写入 livingmemory:channel:<平台>:<群ID> 公共作用域，个人记忆（私聊总结、显式写入）仍按各自作用域保存。",
++                "type": "bool",
++                "default": false
++            },
++            "min_user_slots": {
++                "description": "个人作用域保底槽位",
++                "hint": "联合召回时至少保留的个人/会话作用域结果条数，不足时由频道结果补齐。（允许范围：0–5）",
++                "type": "int",
++                "default": 1,
++                "slider": {
++                    "min": 0,
++                    "max": 5,
++                    "step": 1
++                }
++            },
++            "min_channel_slots": {
++                "description": "频道作用域保底槽位",
++                "hint": "联合召回时至少保留的频道作用域结果条数，不足时由个人结果补齐。（允许范围：0–5）",
++                "type": "int",
++                "default": 1,
++                "slider": {
++                    "min": 0,
++                    "max": 5,
++                    "step": 1
++                }
++            },
++            "include_archived": {
++                "description": "频道召回包含归档记忆",
++                "hint": "默认关闭：归档记忆继续排除在召回之外。开启后仅对频道作用域结果放宽状态过滤。",
++                "type": "bool",
++                "default": false
++            }
++        }
++    },
+     "migration_settings": {
+         "invisible": true,
+         "description": "数据库迁移",
+diff --git a/core/base/config_validator.py b/core/base/config_validator.py
+index 5dfdb52e403b0fafb8e03d4ddb8f6f7dc6a8aee0..90aa6d9cabd6101021a081ffce5679fb1420ca19 100644
+--- a/core/base/config_validator.py
++++ b/core/base/config_validator.py
+@@ -126,6 +126,10 @@ class ProviderConfig(BaseModel):
+     embedding_provider_id: str | None = None
+     llm_provider_id: str | None = None
+     llm_stream_mode: str = "auto"
++    # 主 LLM 不可用时按顺序尝试的备用 Provider ID；空列表表示不启用回退。
++    llm_fallback_provider_ids: list[str] = Field(default_factory=list)
++    # 单个 Provider 单次调用的超时（秒）；超时按该 Provider 不可用处理。
++    llm_call_timeout_seconds: int = Field(default=60, ge=5, le=600)
+ 
+ 
+ class ImportanceDecayConfig(BaseModel):
+@@ -186,6 +190,15 @@ class GraphMemoryConfig(BaseModel):
+     atom_purge_delay_days: float = Field(default=30.0, ge=1.0, le=365.0)
+ 
+ 
++class ChannelMemoryConfig(BaseModel):
++    """群聊频道公共记忆配置"""
++
++    enabled: bool = False
++    min_user_slots: int = Field(default=1, ge=0, le=5)
++    min_channel_slots: int = Field(default=1, ge=0, le=5)
++    include_archived: bool = False
++
++
+ class MemoryConsolidationConfig(BaseModel):
+     """记忆库定期整合配置"""
+ 
+@@ -231,6 +244,7 @@ class LivingMemoryConfig(BaseModel):
+     )
+     backup_settings: BackupSettings = Field(default_factory=BackupSettings)
+     graph_memory: GraphMemoryConfig = Field(default_factory=GraphMemoryConfig)
++    channel_memory: ChannelMemoryConfig = Field(default_factory=ChannelMemoryConfig)
+     fusion_strategy: FusionStrategyConfig = Field(default_factory=FusionStrategyConfig)
+     importance_decay: ImportanceDecayConfig = Field(
+         default_factory=ImportanceDecayConfig
+diff --git a/core/base/usage_metrics.py b/core/base/usage_metrics.py
+index 016e67968d144bc6f06a9f66f34612d5b980356e..a8a261f458a839de9aee1434b29aa7db9df66d7c 100644
+--- a/core/base/usage_metrics.py
++++ b/core/base/usage_metrics.py
+@@ -2,6 +2,7 @@
+ 
+ 仅统计当前进程生命周期内的调用次数与 token 数：Provider 响应携带 usage 时
+ 采用真实值，否则按字符数估算（约 2 字符/token），估算次数单独计数以便区分。
++同时按实际处理调用的 Provider ID 计数，并记录由回退 Provider 处理的调用次数。
+ """
+ 
+ import json
+@@ -18,6 +19,8 @@ _calls = 0
+ _input_tokens = 0
+ _output_tokens = 0
+ _estimated_calls = 0
++_providers: dict[str, int] = {}
++_fallback_calls = 0
+ 
+ 
+ def _coerce_int(value: Any) -> int | None:
+@@ -79,6 +82,8 @@ def record_llm_usage(
+     *,
+     prompt_text: str = "",
+     completion_text: str = "",
++    provider_id: str = "",
++    fallback_used: bool = False,
+ ) -> None:
+     """记录一次成功的 LLM 调用。
+ 
+@@ -86,9 +91,16 @@ def record_llm_usage(
+         usage: Provider 响应上的 usage（dict 或对象）；None 或无法识别时按文本估算。
+         prompt_text: 输入文本，仅在缺少 usage 时用于估算。
+         completion_text: 输出文本，仅在缺少 usage 时用于估算。
++        provider_id: 实际处理本次调用的 Provider ID；空值计入 unknown。
++        fallback_used: 本次调用是否由回退 Provider 处理。
+     """
+     global _calls, _input_tokens, _output_tokens, _estimated_calls
++    global _providers, _fallback_calls
+     _calls += 1
++    provider_key = str(provider_id or "").strip() or "unknown"
++    _providers[provider_key] = _providers.get(provider_key, 0) + 1
++    if fallback_used:
++        _fallback_calls += 1
+     counts = _extract_usage(usage)
+     if counts is None:
+         _input_tokens += len(prompt_text) // _CHARS_PER_TOKEN
+@@ -103,12 +115,14 @@ def record_llm_usage(
+         )
+ 
+ 
+-def get_usage_snapshot() -> dict[str, int]:
+-    """返回当前进程的累计用量快照。"""
++def get_usage_snapshot() -> dict[str, Any]:
++    """返回当前进程的累计用量快照（含按 Provider 的调用次数）。"""
+     return {
+         "calls": _calls,
+         "input_tokens": _input_tokens,
+         "output_tokens": _output_tokens,
+         "total_tokens": _input_tokens + _output_tokens,
+         "estimated_calls": _estimated_calls,
++        "providers": dict(_providers),
++        "fallback_calls": _fallback_calls,
+     }
+diff --git a/core/command_handler.py b/core/command_handler.py
+index 86b031ad5ffed7bce020852ecbf539ccf3d32e65..1fb6ebd595afc6abdc8ee62331ef4efd7f409683 100644
+--- a/core/command_handler.py
++++ b/core/command_handler.py
+@@ -118,6 +118,7 @@ class CommandHandler:
+                 calls=usage["calls"],
+                 input_tokens=usage["input_tokens"],
+                 output_tokens=usage["output_tokens"],
++                fallback_calls=usage.get("fallback_calls", 0),
+             )
+ 
+             maintenance = stats.get("index_maintenance") or {}
+diff --git a/core/event_handler_modules/memory_recall.py b/core/event_handler_modules/memory_recall.py
+index e03b39854bb3ca8d14ee3403d59114c827b21601..e26f0112a2eb51901bedf162744028ffcd747cb2 100644
+--- a/core/event_handler_modules/memory_recall.py
++++ b/core/event_handler_modules/memory_recall.py
+@@ -238,11 +238,13 @@ class MemoryRecall:
+                     f"[{session_id}] 开始记忆召回，查询='{query_for_search[:80]}...'"
+                 )
+ 
++                channel_scope = recall_access.channel_scope
+                 recalled_memories = await self.memory_engine.search_memories(
+                     query=query_for_search,
+                     k=self.config_manager.get("recall_engine.top_k", 5),
+                     session_id=recall_session_id,
+                     persona_id=recall_persona_id,
++                    extra_scopes=[channel_scope] if channel_scope else None,
+                 )
+ 
+                 if recalled_memories:
+diff --git a/core/event_handler_modules/memory_reflection.py b/core/event_handler_modules/memory_reflection.py
+index 05530907b3fc8fe4d50011cae734ff68b8f4c37b..0241da096652891f95a4ebadd66fc9cada963349 100644
+--- a/core/event_handler_modules/memory_reflection.py
++++ b/core/event_handler_modules/memory_reflection.py
+@@ -459,7 +459,8 @@ class MemoryReflection(MemoryReflectionStorageMixin):
+         access = await resolve_event_memory_access(
+             self.config_manager, self.context, event
+         )
+-        memory_scope = access.scope or session_id
++        # 群聊开启频道记忆后，总结进入群共享的频道作用域；私聊不变。
++        memory_scope = access.channel_scope or access.scope or session_id
+         return await self._build_reflection_plan_for_cursor(
+             session_id,
+             total_messages,
+diff --git a/core/event_handler_modules/memory_reflection_storage.py b/core/event_handler_modules/memory_reflection_storage.py
+index 936e7c04640b038404ebcff81ecb64066ee217ca..bd6ff3db19fd37d35767dbe8ac887ae1f9d63c16 100644
+--- a/core/event_handler_modules/memory_reflection_storage.py
++++ b/core/event_handler_modules/memory_reflection_storage.py
+@@ -7,6 +7,7 @@ from typing import Any
+ from astrbot.api import logger
+ 
+ from ..base.exceptions import LowQualityMemoryError, MemoryParseError
++from ..memory_scope import channel_scope_parts, is_channel_scope
+ from ..memory_source import serialize_source_messages
+ 
+ _DEFAULT_MEMORY_SCOPE = object()
+@@ -304,6 +305,11 @@ class MemoryReflectionStorageMixin:
+                         "message_count": end_index - start_index,
+                     }
+                     metadata["source_session_id"] = session_id
++                    if is_channel_scope(memory_scope):
++                        channel_platform, channel_id = channel_scope_parts(memory_scope)
++                        metadata["scope_kind"] = "channel"
++                        metadata["channel_id"] = channel_id
++                        metadata["channel_platform"] = channel_platform
+ 
+                     logger.info(
+                         f"[{session_id}] 已使用LLM生成结构化记忆, "
+diff --git a/core/i18n/en.json b/core/i18n/en.json
+index f8586a897fcb984ca5b646e1fb918defcece1363..310de20e7c75b94d3d3f1156c2eae294265e0b75 100644
+--- a/core/i18n/en.json
++++ b/core/i18n/en.json
+@@ -70,7 +70,7 @@
+   "status": {
+     "action_name": "Status fetch",
+     "report": "LivingMemory Status Report\n\nTotal memories: {total}\nSessions: {session_count}\nLast update: {last_update}\nDatabase size: {db_size:.2f} MB\n\nAvailable operations:\n- /lmem search <keyword>",
+-    "usage": "\n\nLLM calls: {calls} / input tokens: {input_tokens} / output tokens: {output_tokens}",
++    "usage": "\n\nLLM calls: {calls} / input tokens: {input_tokens} / output tokens: {output_tokens} / fallback calls: {fallback_calls}",
+     "index_maintenance": "\n\nIndex maintenance: {state} ({current}/{total})\n{message}"
+   },
+   "diag": {
+diff --git a/core/i18n/ja.json b/core/i18n/ja.json
+index abe6c5cd095a71c88c446d57a7c6f5557c83f7c0..07df055631a34473fc12e9eb7a07a362b37667a8 100644
+--- a/core/i18n/ja.json
++++ b/core/i18n/ja.json
+@@ -70,7 +70,7 @@
+   "status": {
+     "action_name": "ステータス取得",
+     "report": "LivingMemory ステータスレポート\n\n総記憶数: {total}\nセッション数: {session_count}\n最終更新: {last_update}\nデータベースサイズ: {db_size:.2f} MB\n\n使用可能な操作:\n- /lmem search <キーワード>",
+-    "usage": "\n\nLLM 呼び出し: {calls} 回 / 入力 {input_tokens} tokens / 出力 {output_tokens} tokens",
++    "usage": "\n\nLLM 呼び出し: {calls} 回 / 入力 {input_tokens} tokens / 出力 {output_tokens} tokens / フォールバック {fallback_calls} 回",
+     "index_maintenance": "\n\nインデックス保守: {state} ({current}/{total})\n{message}"
+   },
+   "diag": {
+diff --git a/core/i18n/ru.json b/core/i18n/ru.json
+index 71ad6ef3d21d1440eaedaa806834034c2df6e322..86ef60658663c36fc52e92de49752c1fe77e0f99 100644
+--- a/core/i18n/ru.json
++++ b/core/i18n/ru.json
+@@ -70,7 +70,7 @@
+   "status": {
+     "action_name": "Получение статуса",
+     "report": "Отчёт о состоянии LivingMemory\n\nВсего памяти: {total}\nСессий: {session_count}\nПоследнее обновление: {last_update}\nРазмер БД: {db_size:.2f} MB\n\nДоступные операции:\n- /lmem search <ключевое слово>",
+-    "usage": "\n\nВызовы LLM: {calls} / входные токены: {input_tokens} / выходные токены: {output_tokens}",
++    "usage": "\n\nВызовы LLM: {calls} / входные токены: {input_tokens} / выходные токены: {output_tokens} / резервные вызовы: {fallback_calls}",
+     "index_maintenance": "\n\nОбслуживание индекса: {state} ({current}/{total})\n{message}"
+   },
+   "diag": {
+diff --git a/core/i18n/zh.json b/core/i18n/zh.json
+index b4f29cc1a93a26365bf6e860372862dbfb607eed..c19bec134f80fa5608f656f6cb34e4925f220b55 100644
+--- a/core/i18n/zh.json
++++ b/core/i18n/zh.json
+@@ -70,7 +70,7 @@
+   "status": {
+     "action_name": "获取状态",
+     "report": "LivingMemory 状态报告\n\n总记忆数: {total}\n会话数: {session_count}\n最后更新: {last_update}\n数据库大小: {db_size:.2f} MB\n\n可用操作:\n- /lmem search <关键词>",
+-    "usage": "\n\nLLM 调用：{calls} 次 / 输入 {input_tokens} tokens / 输出 {output_tokens} tokens",
++    "usage": "\n\nLLM 调用：{calls} 次 / 输入 {input_tokens} tokens / 输出 {output_tokens} tokens / 回退 {fallback_calls} 次",
+     "index_maintenance": "\n\n索引维护: {state} ({current}/{total})\n{message}"
+   },
+   "diag": {
+diff --git a/core/managers/consolidation_manager.py b/core/managers/consolidation_manager.py
+index 45c925663b311aaafe66d949f238ed309cc09618..95e68b4dfb2b675e66fd83efb60471c4c1023a4b 100644
+--- a/core/managers/consolidation_manager.py
++++ b/core/managers/consolidation_manager.py
+@@ -221,6 +221,10 @@ class MemoryConsolidationManager:
+             "consolidated_from": [mem["id"] for mem in group],
+             "consolidated_at": time.time(),
+         }
++        for channel_key in ("scope_kind", "channel_id", "channel_platform"):
++            channel_value = group[0]["metadata"].get(channel_key)
++            if channel_value is not None:
++                metadata[channel_key] = channel_value
+ 
+         async with self.write_lock:
+             new_id = await self.memory_engine.add_memory(
+diff --git a/core/managers/memory_engine_agentic.py b/core/managers/memory_engine_agentic.py
+index ca730dec32e89dffc30f6dbadc3c4736752cab87..6a5c07295ebd1b00dea82e923fed93a3cb648763 100644
+--- a/core/managers/memory_engine_agentic.py
++++ b/core/managers/memory_engine_agentic.py
+@@ -7,7 +7,12 @@ from typing import Any
+ 
+ from astrbot.api import logger
+ 
+-from ..memory_scope import adapter_sql
++from ..memory_scope import (
++    adapter_sql,
++    memory_scope_sql,
++    memory_scope_visible,
++    merge_memory_scopes,
++)
+ from ..retrieval.hybrid_retriever import HybridResult
+ from ..retrieval.recall_diagnostics import all_routes_failed, merge_route
+ from ..retrieval.route_execution import search_route
+@@ -46,6 +51,7 @@ class MemoryEngineAgenticMixin:
+         k=5,
+         session_id=None,
+         persona_id=None,
++        extra_scopes: list[str] | None = None,
+         identity_key=None,
+         identity_candidates=None,
+         start_ts=None,
+@@ -64,6 +70,7 @@ class MemoryEngineAgenticMixin:
+             return AgenticRecallOutcome(
+                 [], "invalid_query", message="start_time exceeds end_time"
+             )
++        scope_filter = merge_memory_scopes(session_id, extra_scopes)
+         if target == "current_speaker":
+             try:
+                 decode_participant_cursor(cursor)
+@@ -74,7 +81,7 @@ class MemoryEngineAgenticMixin:
+                 return await self._agentic_search_by_participant(
+                     query=query,
+                     k=k,
+-                    session_id=session_id,
++                    session_id=scope_filter,
+                     persona_id=persona_id,
+                     identity_key=identity_key,
+                     identity_candidates=identity_candidates or [],
+@@ -86,7 +93,7 @@ class MemoryEngineAgenticMixin:
+             return await self._agentic_search_conversation(
+                 query=query,
+                 k=k,
+-                session_id=session_id,
++                session_id=scope_filter,
+                 persona_id=persona_id,
+                 start_ts=start_ts,
+                 end_ts=end_ts,
+@@ -152,10 +159,7 @@ class MemoryEngineAgenticMixin:
+                 results = [
+                     result
+                     for result in results
+-                    if (
+-                        session_id is None
+-                        or result.metadata.get("session_id") == session_id
+-                    )
++                    if memory_scope_visible(result.metadata, session_id)
+                     and (
+                         persona_id is None
+                         or result.metadata.get("persona_id") == persona_id
+@@ -247,7 +251,7 @@ class MemoryEngineAgenticMixin:
+             )
+             for document in loaded:
+                 metadata = safe_json_dict(document.get("metadata"))
+-                if session_id is not None and metadata.get("session_id") != session_id:
++                if not memory_scope_visible(metadata, session_id):
+                     continue
+                 if persona_id is not None and metadata.get("persona_id") != persona_id:
+                     continue
+@@ -356,10 +360,15 @@ class MemoryEngineAgenticMixin:
+             "COALESCE(json_extract(metadata, '$.status'), 'active') = 'active'"
+         ]
+         params: list[Any] = []
+-        for key, value in (("session_id", session_id), ("persona_id", persona_id)):
+-            if value is not None:
+-                conditions.append(f"json_extract(metadata, '$.{key}') = ?")
+-                params.append(value)
++        scope_clause, scope_params = memory_scope_sql(
++            "json_extract(metadata, '$.session_id')", session_id
++        )
++        if scope_clause:
++            conditions.append(scope_clause)
++            params.extend(scope_params)
++        if persona_id is not None:
++            conditions.append("json_extract(metadata, '$.persona_id') = ?")
++            params.append(persona_id)
+         ownership, ownership_params = adapter_sql("metadata")
+         conditions.append(ownership)
+         params.extend(ownership_params)
+diff --git a/core/managers/memory_engine_recall.py b/core/managers/memory_engine_recall.py
+index e2805b64382ce3f69287873024199e5e9e90b42f..565a90a94413dcdb722f9c91bc490f3935cd2f87 100644
+--- a/core/managers/memory_engine_recall.py
++++ b/core/managers/memory_engine_recall.py
+@@ -18,6 +18,11 @@ from ..memory_scope import (
+     adapter_sql,
+     adapter_visible,
+     current_adapter_access,
++    is_channel_scope,
++    memory_scope_sql,
++    memory_scope_visible,
++    merge_memory_scopes,
++    normalize_memory_scopes,
+ )
+ from ..memory_transfer import memory_import_key
+ from ..retrieval.hybrid_retriever import HybridResult
+@@ -69,6 +74,8 @@ class MemoryEngineRecallMixin:
+         k: int = 5,
+         session_id: str | None = None,
+         persona_id: str | None = None,
++        *,
++        extra_scopes: list[str] | None = None,
+     ) -> list[HybridResult]:
+         """
+         检索相关记忆
+@@ -78,6 +85,7 @@ class MemoryEngineRecallMixin:
+             k: 返回数量
+             session_id: 会话ID过滤(可选,应传入unified_msg_origin完整格式)
+             persona_id: 人格ID过滤(可选)
++            extra_scopes: 与主作用域并联检索的附加作用域（如频道公共记忆）。
+ 
+         Returns:
+             List[HybridResult]: 检索结果列表
+@@ -85,7 +93,13 @@ class MemoryEngineRecallMixin:
+         if not query or not query.strip():
+             return []
+ 
+-        cache_key = self._search_cache_key(query, k, session_id, persona_id)
++        # 主作用域 + 附加作用域合并为一次 IN 过滤；单作用域时保持 = ? 热路径。
++        scope_filter = merge_memory_scopes(session_id, extra_scopes)
++        extra_scope_values = normalize_memory_scopes(extra_scopes) or []
++        channel_scopes = [
++            scope for scope in extra_scope_values if is_channel_scope(scope)
++        ]
++        cache_key = self._search_cache_key(query, k, scope_filter, persona_id)
+         cached_results = self._get_cached_search_results(cache_key)
+         if cached_results is not None:
+             cached_results = await self._apply_atom_policy(cached_results)
+@@ -118,20 +132,20 @@ class MemoryEngineRecallMixin:
+             results = await self.dual_route_retriever.search(
+                 query,
+                 k,
+-                session_id,
++                scope_filter,
+                 persona_id,
+             )
+         else:
+             if self.hybrid_retriever is None:
+                 raise RuntimeError("混合检索器未初始化")
+             results = await self.hybrid_retriever.search(
+-                query, k, session_id, persona_id
++                query, k, scope_filter, persona_id
+             )
+ 
+         if self.atom_retriever is not None:
+             atom_results, _ = await search_route(
+                 "atoms",
+-                self.atom_retriever.search(query, k * 2, session_id, persona_id),
++                self.atom_retriever.search(query, k * 2, scope_filter, persona_id),
+             )
+             existing_ids = {result.doc_id for result in results}
+             scores = {}
+@@ -149,10 +163,7 @@ class MemoryEngineRecallMixin:
+                 )
+                 for document in documents:
+                     metadata = safe_json_dict(document.get("metadata"))
+-                    if (
+-                        session_id is not None
+-                        and metadata.get("session_id") != session_id
+-                    ):
++                    if not memory_scope_visible(metadata, scope_filter):
+                         continue
+                     if (
+                         persona_id is not None
+@@ -175,16 +186,29 @@ class MemoryEngineRecallMixin:
+                 results.sort(key=lambda result: result.final_score, reverse=True)
+ 
+         results = await self._apply_atom_policy(results)
+-        results = self._filter_by_retrieval_policy(results)
++        results = self._filter_by_retrieval_policy(
++            results,
++            archived_scopes=(
++                set(channel_scopes)
++                if channel_scopes and self.config.get("channel_include_archived")
++                else None
++            ),
++        )
+         resolved_ids = {result.doc_id for result in results}
+         results = await self._merge_recent_memories(
+             results,
+             k,
+-            session_id,
++            scope_filter,
+             persona_id,
+         )
+         # 只对合并进来的新候选做原子策略解析，避免重复查询已解析的文档
+         results = await self._apply_atom_policy(results, skip_doc_ids=resolved_ids)
++        # 频道联合召回：保证 user/channel 各自的最小保底槽位后按分数补满。
++        results = self._apply_scope_slot_quota(
++            results,
++            k,
++            channel_scopes=channel_scopes,
++        )
+ 
+         # 访问统计合并到窗口内异步写，不阻塞返回
+         if results:
+@@ -314,6 +338,8 @@ class MemoryEngineRecallMixin:
+         keyword: str = "",
+         status: str = "all",
+         memory_type: str | None = None,
++        scope: str | None = None,
++        channel_id: str | None = None,
+         sort_key: str = "created_desc",
+         page: int = 1,
+         page_size: int = 20,
+@@ -365,6 +391,20 @@ class MemoryEngineRecallMixin:
+             where_clauses.append(f"{type_expr} = ?")
+             params.append(memory_type.upper())
+ 
++        if scope:
++            scope_kind = scope.strip().casefold()
++            if scope_kind == "channel":
++                where_clauses.append(
++                    "json_extract(metadata, '$.scope_kind') = 'channel'"
++                )
++            else:
++                where_clauses.append("json_extract(metadata, '$.session_id') = ?")
++                params.append(scope)
++
++        if channel_id:
++            where_clauses.append("json_extract(metadata, '$.channel_id') = ?")
++            params.append(channel_id)
++
+         if keyword:
+             keyword_like = f"%{keyword}%"
+             if keyword.isdigit():
+@@ -690,15 +730,16 @@ class MemoryEngineRecallMixin:
+         self,
+         query: str,
+         k: int,
+-        session_id: str | None,
++        scope_filter: str | list[str] | None,
+         persona_id: str | None,
+     ) -> tuple[Any, ...]:
++        scopes = tuple(normalize_memory_scopes(scope_filter) or ())
+         return (
+             self._search_cache_generation,
+             adapter_cache_key(),
+             self._normalize_cache_query(query),
+             int(k),
+-            session_id or "",
++            scopes,
+             persona_id or "",
+             bool(self.dual_route_retriever is not None),
+             round(float(self.config.get("document_route_weight", 0.65)), 4),
+@@ -716,8 +757,74 @@ class MemoryEngineRecallMixin:
+             int(self.config.get("recall_candidate_multiplier", 3)),
+         )
+ 
++    def _apply_scope_slot_quota(
++        self,
++        results: list[HybridResult],
++        k: int,
++        *,
++        channel_scopes: list[str],
++    ) -> list[HybridResult]:
++        """Keep minimum per-pool slots for user/channel recall, then fill by score.
++
++        Args:
++            results: Fused candidates after policy filters.
++            k: Total recall budget.
++            channel_scopes: Shared channel scopes merged into this request.
++
++        Returns:
++            At most ``k`` results; each non-empty pool keeps its configured
++            minimum slot count and the remainder is filled by final score.
++        """
++        if not results or not channel_scopes or k <= 0:
++            return results[:k]
++        min_user = max(0, int(self.config.get("channel_min_user_slots", 1) or 0))
++        min_channel = max(0, int(self.config.get("channel_min_channel_slots", 1) or 0))
++        if min_user <= 0 and min_channel <= 0:
++            return results[:k]
++
++        channel_set = set(channel_scopes)
++        ordered = sorted(results, key=lambda item: item.final_score, reverse=True)
++        user_pool = [
++            item
++            for item in ordered
++            if (item.metadata or {}).get("session_id") not in channel_set
++        ]
++        channel_pool = [
++            item
++            for item in ordered
++            if (item.metadata or {}).get("session_id") in channel_set
++        ]
++
++        selected: list[HybridResult] = []
++        selected_ids: set[int] = set()
++
++        def take(pool: list[HybridResult], limit: int) -> None:
++            for item in pool:
++                if limit <= 0 or len(selected) >= k:
++                    return
++                if item.doc_id in selected_ids:
++                    continue
++                selected.append(item)
++                selected_ids.add(item.doc_id)
++                limit -= 1
++
++        take(channel_pool, min_channel)
++        take(user_pool, min_user)
++        for item in ordered:
++            if len(selected) >= k:
++                break
++            if item.doc_id in selected_ids:
++                continue
++            selected.append(item)
++            selected_ids.add(item.doc_id)
++        selected.sort(key=lambda item: item.final_score, reverse=True)
++        return selected[:k]
++
+     def _filter_by_retrieval_policy(
+-        self, results: list[HybridResult]
++        self,
++        results: list[HybridResult],
++        *,
++        archived_scopes: set[str] | None = None,
+     ) -> list[HybridResult]:
+         importance_threshold = clamp_float(
+             self.config.get("min_importance_for_retrieval"), default=0.0
+@@ -733,7 +840,10 @@ class MemoryEngineRecallMixin:
+             metadata = getattr(result, "metadata", {})
+             if not isinstance(metadata, dict):
+                 metadata = {}
+-            if str(metadata.get("status") or "active") != "active":
++            status = str(metadata.get("status") or "active")
++            if status != "active" and not (
++                archived_scopes and metadata.get("session_id") in archived_scopes
++            ):
+                 continue
+             # 被新总结取代的旧记忆只保留在存储中供审计，不再参与任何召回
+             # （显式 /lmem search 与自动注入共用本过滤）。
+@@ -773,7 +883,7 @@ class MemoryEngineRecallMixin:
+     async def _get_recent_memory_results(
+         self,
+         count: int,
+-        session_id: str | None,
++        session_id: str | list[str] | None,
+         persona_id: str | None,
+     ) -> list[HybridResult]:
+         """按创建时间倒序取当前范围内的近期记忆，作为相关性不足时的补位候选。
+@@ -796,9 +906,12 @@ class MemoryEngineRecallMixin:
+             "COALESCE(json_extract(metadata, '$.status'), 'active') = 'active'"
+         ]
+         params: list[Any] = []
+-        if session_id is not None:
+-            conditions.append("json_extract(metadata, '$.session_id') = ?")
+-            params.append(session_id)
++        scope_clause, scope_params = memory_scope_sql(
++            "json_extract(metadata, '$.session_id')", session_id
++        )
++        if scope_clause:
++            conditions.append(scope_clause)
++            params.extend(scope_params)
+         if persona_id is not None:
+             conditions.append("json_extract(metadata, '$.persona_id') = ?")
+             params.append(persona_id)
+@@ -840,7 +953,7 @@ class MemoryEngineRecallMixin:
+         self,
+         results: list[HybridResult],
+         k: int,
+-        session_id: str | None,
++        session_id: str | list[str] | None,
+         persona_id: str | None,
+     ) -> list[HybridResult]:
+         """仅在相关性结果不足 k 条时用近期记忆补位。
+diff --git a/core/memory_scope.py b/core/memory_scope.py
+index ac9e95407757c2143993d9ede50b2d52f31ef9a8..44799fc655c1682b0599c6283df6ceb1fb3c244d 100644
+--- a/core/memory_scope.py
++++ b/core/memory_scope.py
+@@ -3,12 +3,17 @@
+ from __future__ import annotations
+ 
+ import re
++from collections.abc import Sequence
+ from contextlib import contextmanager
+ from contextvars import ContextVar
+ from dataclasses import dataclass
+ from typing import Any
+ 
+ GLOBAL_MEMORY_SCOPE = "livingmemory:global"
++CHANNEL_SCOPE_PREFIX = "livingmemory:channel"
++
++# 一个检索请求可携带单个作用域，或「个人 + 频道」等多个作用域的并集。
++MemoryScopeFilter = str | Sequence[str] | None
+ 
+ 
+ @dataclass(frozen=True)
+@@ -198,6 +203,7 @@ class EventMemoryAccess:
+     allowed: bool
+     persona_id: str | None
+     scope: str | None
++    channel_scope: str | None = None
+ 
+ 
+ async def resolve_event_memory_access(
+@@ -224,7 +230,157 @@ async def resolve_event_memory_access(
+         allowed=True,
+         persona_id=persona_id,
+         scope=resolve_memory_scope(config, event),
++        channel_scope=resolve_channel_memory_scope(config, event),
++    )
++
++
++def is_channel_scope(scope: Any) -> bool:
++    """Return True when *scope* is a shared channel memory scope."""
++    return isinstance(scope, str) and scope.startswith(f"{CHANNEL_SCOPE_PREFIX}:")
++
++
++def channel_scope_parts(scope: Any) -> tuple[str | None, str | None]:
++    """Split a channel scope into ``(platform, group_id)``.
++
++    Args:
++        scope: Candidate channel scope.
++
++    Returns:
++        ``(platform, group_id)``; both are None when *scope* is not a channel.
++    """
++    if not is_channel_scope(scope):
++        return None, None
++    parts = str(scope).split(":", 3)
++    if len(parts) != 4:
++        return None, None
++    return parts[2] or None, parts[3] or None
++
++
++def _is_group_event(event: Any) -> bool:
++    group_id = _event_value(event, "get_group_id", "group_id")
++    if group_id:
++        return True
++    message_type = getattr(event, "get_message_type", None)
++    if callable(message_type):
++        try:
++            value = message_type()
++        except Exception:
++            value = None
++        if str(getattr(value, "value", value) or "").casefold() == "group_message":
++            return True
++    origin = _event_value(event, "unified_msg_origin", "unified_msg_origin")
++    return "groupmessage" in origin.casefold()
++
++
++def resolve_channel_memory_scope(config: Any, event: Any) -> str | None:
++    """Resolve the shared group channel scope when channel memory is enabled.
++
++    Args:
++        config: ConfigManager or host config.
++        event: Current message event.
++
++    Returns:
++        ``livingmemory:channel:<platform>:<group_id>`` for group events with a
++        resolvable group id, otherwise None.
++    """
++    if not _config_get(config, "channel_memory.enabled", False):
++        return None
++    if not _is_group_event(event):
++        return None
++    group_id = _event_value(event, "get_group_id", "group_id")
++    if not group_id:
++        origin = _event_value(event, "unified_msg_origin", "unified_msg_origin")
++        if "GroupMessage" in origin:
++            group_id = origin.rsplit(":", 1)[-1]
++        elif "groupmessage" in origin.casefold():
++            group_id = origin.rsplit(":", 1)[-1]
++    if not group_id:
++        return None
++    if _scope_mode(config) == "global":
++        return None
++    session_id = _event_value(event, "unified_msg_origin", "unified_msg_origin")
++    isolated = set(
++        parse_value_list(
++            _config_get(config, "filtering_settings.isolated_sessions", "")
++        )
+     )
++    if session_id and session_id in isolated:
++        return None
++    platform = _event_value(event, "get_platform_name", "platform").casefold()
++    return f"{CHANNEL_SCOPE_PREFIX}:{platform or 'unknown'}:{group_id}"
++
++
++def _scope_mode(config: Any) -> str:
++    return str(
++        _config_get(config, "filtering_settings.memory_scope_mode", "legacy")
++    ).casefold()
++
++
++def normalize_memory_scopes(scopes: MemoryScopeFilter) -> list[str] | None:
++    """Normalize one scope or a scope sequence into a unique ordered list.
++
++    Args:
++        scopes: A single scope string, a sequence of scopes, or None.
++
++    Returns:
++        Ordered unique scopes, or None when the filter is empty.
++    """
++    if scopes is None:
++        return None
++    if isinstance(scopes, str):
++        values = [scopes.strip()] if scopes.strip() else []
++    else:
++        values = [str(value).strip() for value in scopes if value]
++    unique = list(dict.fromkeys(value for value in values if value))
++    return unique or None
++
++
++def merge_memory_scopes(*scopes: MemoryScopeFilter) -> str | list[str] | None:
++    """Merge scope filters, preserving order and collapsing a single scope.
++
++    Args:
++        *scopes: Scope filters to merge (each may itself be a sequence).
++
++    Returns:
++        A single scope string, a non-empty scope list, or None.
++    """
++    merged: list[str] = []
++    for scope in scopes:
++        for value in normalize_memory_scopes(scope) or []:
++            if value not in merged:
++                merged.append(value)
++    if not merged:
++        return None
++    return merged[0] if len(merged) == 1 else merged
++
++
++def memory_scope_sql(
++    column: str, scope_filter: MemoryScopeFilter
++) -> tuple[str, list[str]]:
++    """Build a SQL predicate for one or more memory scopes.
++
++    Args:
++        column: SQL expression holding the stored scope (e.g. ``ge.session_id``).
++        scope_filter: Single scope or scope sequence.
++
++    Returns:
++        ``(predicate, params)``; predicate is empty when no scope filter is set.
++    """
++    scopes = normalize_memory_scopes(scope_filter)
++    if not scopes:
++        return "", []
++    if len(scopes) == 1:
++        return f"{column} = ?", scopes
++    placeholders = ",".join("?" for _ in scopes)
++    return f"{column} IN ({placeholders})", scopes
++
++
++def memory_scope_visible(
++    metadata: dict[str, Any], scope_filter: MemoryScopeFilter
++) -> bool:
++    """Check loaded metadata against a scope filter."""
++    scopes = normalize_memory_scopes(scope_filter)
++    return scopes is None or metadata.get("session_id") in scopes
+ 
+ 
+ def is_event_memory_allowed(config: Any, event: Any) -> bool:
+@@ -310,8 +466,17 @@ def is_suspicious_session_id(session_id: str | None) -> bool:
+ 
+ 
+ __all__ = [
++    "CHANNEL_SCOPE_PREFIX",
+     "EventMemoryAccess",
+     "GLOBAL_MEMORY_SCOPE",
++    "MemoryScopeFilter",
++    "channel_scope_parts",
++    "is_channel_scope",
++    "memory_scope_sql",
++    "memory_scope_visible",
++    "merge_memory_scopes",
++    "normalize_memory_scopes",
++    "resolve_channel_memory_scope",
+     "resolve_event_memory_access",
+     "is_event_memory_allowed",
+     "is_suspicious_session_id",
+diff --git a/core/page_api_modules/memory_handler.py b/core/page_api_modules/memory_handler.py
+index 5fb078da87f067b0c263a66ab10c37893f5f2bbd..32d75b3bccf27f85437fb365af8caecd4c4c8d97 100644
+--- a/core/page_api_modules/memory_handler.py
++++ b/core/page_api_modules/memory_handler.py
+@@ -31,6 +31,8 @@ class MemoryHandler(MemoryHandlerUpdateMixin, MemoryHandlerIoMixin):
+         "summary_quality",
+         "session_id",
+         "persona_id",
++        "scope_kind",
++        "channel_id",
+     )
+ 
+     def __init__(self, utils: "PageApiUtils"):
+@@ -112,6 +114,8 @@ class MemoryHandler(MemoryHandlerUpdateMixin, MemoryHandlerIoMixin):
+         type_filter = self.utils.optional_text(query.get("type"))
+         if type_filter and type_filter.lower() == "all":
+             type_filter = None
++        scope_filter = self.utils.optional_text(query.get("scope"))
++        channel_filter = self.utils.optional_text(query.get("channel_id"))
+         sort_key = str(query.get("sort", "created_desc")).strip().lower()
+ 
+         try:
+@@ -126,6 +130,8 @@ class MemoryHandler(MemoryHandlerUpdateMixin, MemoryHandlerIoMixin):
+                 keyword=keyword,
+                 status=status_filter,
+                 memory_type=type_filter,
++                scope=scope_filter,
++                channel_id=channel_filter,
+                 sort_key=sort_key,
+                 page=page,
+                 page_size=page_size,
+@@ -176,6 +182,8 @@ class MemoryHandler(MemoryHandlerUpdateMixin, MemoryHandlerIoMixin):
+                 "has_more": page_data["has_more"],
+                 "filters": {
+                     "session_id": session_id,
++                    "scope": scope_filter,
++                    "channel_id": channel_filter,
+                     "keyword": keyword,
+                     "status": status_filter,
+                     "type": type_filter,
+diff --git a/core/plugin_initializer.py b/core/plugin_initializer.py
+index 1fc03b6195e6ea427c9cee927d4525e1da969135..3c784d02284a338faa5d79c96e377cd82cf8abd0 100644
+--- a/core/plugin_initializer.py
++++ b/core/plugin_initializer.py
+@@ -329,6 +329,28 @@ class PluginInitializer(InitializerFaissMixin):
+                     logger.debug(f"获取默认 LLM Provider 失败: {e}")
+                 self.llm_provider = None
+ 
++        # 主 Provider 与宿主默认均不可用时，初始化阶段先采用第一个可解析的
++        # 备用 Provider，避免配置了回退仍无法启动；运行期仍按完整回退链调用。
++        if not self.llm_provider:
++            fallback_ids = (
++                self.config_manager.get(
++                    "provider_settings.llm_fallback_provider_ids", []
++                )
++                or []
++            )
++            for fallback_id in fallback_ids:
++                if not isinstance(fallback_id, str) or not fallback_id.strip():
++                    continue
++                provider = self._get_provider_by_id(fallback_id.strip(), silent=silent)
++                if provider and isinstance(provider, Provider):
++                    self.llm_provider = provider
++                    if not silent:
++                        logger.warning(
++                            "主 LLM Provider 不可用，初始化阶段暂用备用 Provider: "
++                            f"{fallback_id.strip()}"
++                        )
++                    break
++
+     def _get_provider_by_id(self, provider_id: str, *, silent: bool):
+         """静默检查阶段绕过会打印 warning 的 AstrBot 查询接口。"""
+         if not provider_id:
+@@ -583,6 +605,9 @@ class PluginInitializer(InitializerFaissMixin):
+             "stopwords_path": str(storage["stopwords_dir"]),
+             "tokenizer": get("recall_engine.tokenizer", "jieba"),
+             "graph_memory_enabled": graph_memory_enabled,
++            "channel_min_user_slots": get("channel_memory.min_user_slots", 1),
++            "channel_min_channel_slots": get("channel_memory.min_channel_slots", 1),
++            "channel_include_archived": get("channel_memory.include_archived", False),
+             "document_route_weight": get("graph_memory.document_route_weight", 0.65),
+             "graph_route_weight": get("graph_memory.graph_route_weight", 0.35),
+             "cross_route_bonus": get("graph_memory.cross_route_bonus", 0.08),
+@@ -658,6 +683,12 @@ class PluginInitializer(InitializerFaissMixin):
+                 "llm_stream_mode": self.config_manager.get(
+                     "provider_settings.llm_stream_mode", "auto"
+                 ),
++                "llm_fallback_provider_ids": self.config_manager.get(
++                    "provider_settings.llm_fallback_provider_ids", []
++                ),
++                "llm_call_timeout_seconds": self.config_manager.get(
++                    "provider_settings.llm_call_timeout_seconds", 60
++                ),
+             },
+         )
+         logger.info("MemoryProcessor 已初始化")
+diff --git a/core/processors/memory_processor.py b/core/processors/memory_processor.py
+index 393d48890941789beaeb7730c6284ec413fee5b2..bee8e591ba60b397470b33520195d676eebb331f 100644
+--- a/core/processors/memory_processor.py
++++ b/core/processors/memory_processor.py
+@@ -92,7 +92,8 @@ def _is_transient_llm_error(exc: BaseException) -> bool:
+     """判断 LLM 调用异常是否为可重试的瞬时错误。
+ 
+     仅超时、HTTP 429/5xx 与连接类错误可重试；解析失败、校验失败、
+-    参数/鉴权错误等立即失败，避免同一错误反复消耗 LLM 调用额度。
++    参数错误等不属于瞬时错误（鉴权失败由 Provider 回退链处理，不重试）。
++    重试只发生在同一个 Provider 内，避免同一错误反复消耗 LLM 调用额度。
+     """
+     if isinstance(exc, (asyncio.TimeoutError, TimeoutError, ConnectionError)):
+         return True
+@@ -110,6 +111,49 @@ def _is_transient_llm_error(exc: BaseException) -> bool:
+     return any(marker in message for marker in _TRANSIENT_ERROR_MESSAGE_MARKERS)
+ 
+ 
++# 与配置默认值保持一致：单个 Provider 单次调用默认超时（秒）。
++DEFAULT_LLM_CALL_TIMEOUT_SECONDS = 60
++
++# 鉴权/权限失败标记：这类错误换一个 Provider 才有意义，不应重试或直接放弃。
++_AUTH_ERROR_MARKERS = (
++    "unauthorized",
++    "unauthorised",
++    "authentication",
++    "invalid api key",
++    "invalid_api_key",
++    "incorrect api key",
++    "permission denied",
++    "forbidden",
++    "access denied",
++    "http 401",
++    "http 403",
++    "status code 401",
++    "status code 403",
++)
++
++
++def _is_auth_llm_error(exc: BaseException) -> bool:
++    """判断异常是否为 Provider 鉴权/权限错误。"""
++    if _extract_http_status(exc) in (401, 403):
++        return True
++    type_names = {cls.__name__.lower() for cls in type(exc).__mro__}
++    if any(
++        "authentication" in name or "permissiondenied" in name for name in type_names
++    ):
++        return True
++    message = str(exc).lower()
++    return any(marker in message for marker in _AUTH_ERROR_MARKERS)
++
++
++def _is_provider_unavailable_error(exc: BaseException) -> bool:
++    """判断异常是否应切换到下一个 Provider。
++
++    超时、HTTP 429/5xx、连接类错误与鉴权失败属于 Provider 级不可用；
++    解析/校验/请求格式等错误换一个模型也无济于事，直接抛出。
++    """
++    return _is_transient_llm_error(exc) or _is_auth_llm_error(exc)
++
++
+ class MemoryProcessor:
+     """
+     记忆处理器
+@@ -139,10 +183,44 @@ class MemoryProcessor:
+         self.config = config or {}
+         # 记录已确认只接受流式请求的 Provider ID，auto 模式后续直接走流式
+         self._stream_only_providers: set[str] = set()
++        # 主 Provider 不可用时按顺序尝试的备用 Provider ID（去重、保序）。
++        self._fallback_provider_ids = self._normalize_provider_ids(
++            self.config.get("llm_fallback_provider_ids")
++        )
++        # 每个 Provider 单次调用的超时（秒），由 asyncio.wait_for 生效。
++        self._llm_call_timeout_seconds = self._normalize_call_timeout(
++            self.config.get("llm_call_timeout_seconds")
++        )
+ 
+         # 加载提示词模板
+         self._load_prompts()
+ 
++    @staticmethod
++    def _normalize_provider_ids(value: Any) -> list[str]:
++        """Normalize fallback provider IDs into a deduplicated ordered list."""
++        if not isinstance(value, list):
++            return []
++        seen: set[str] = set()
++        provider_ids: list[str] = []
++        for item in value:
++            if not isinstance(item, str):
++                continue
++            provider_id = item.strip()
++            if provider_id and provider_id not in seen:
++                seen.add(provider_id)
++                provider_ids.append(provider_id)
++        return provider_ids
++
++    @staticmethod
++    def _normalize_call_timeout(value: Any) -> float:
++        """Normalize the per-call timeout; invalid values fall back to default."""
++        if isinstance(value, bool) or not isinstance(value, (int, float)):
++            return float(DEFAULT_LLM_CALL_TIMEOUT_SECONDS)
++        timeout = float(value)
++        if timeout <= 0:
++            return float(DEFAULT_LLM_CALL_TIMEOUT_SECONDS)
++        return timeout
++
+     async def _get_current_llm_provider(self):
+         """动态解析LLM Provider以避免持有过期引用
+ 
+@@ -182,6 +260,86 @@ class MemoryProcessor:
+ 
+         return None
+ 
++    @staticmethod
++    def _provider_label(provider: Any, configured_id: str = "") -> str:
++        """Return the provider id used in logs and usage statistics."""
++        if configured_id:
++            return configured_id
++        provider_config = getattr(provider, "provider_config", None)
++        if isinstance(provider_config, dict):
++            provider_id = provider_config.get("id")
++        else:
++            provider_id = getattr(provider_config, "id", None)
++        return str(provider_id) if provider_id else "default"
++
++    def _resolve_fallback_provider(self, provider_id: str):
++        """Resolve one fallback provider by ID; return None when unavailable."""
++        if not self.context:
++            logger.warning(
++                f"[MemoryProcessor] No context to resolve fallback LLM provider "
++                f"'{provider_id}', skipped"
++            )
++            return None
++        try:
++            provider = self.context.get_provider_by_id(provider_id)
++        except Exception as e:
++            logger.warning(
++                f"[MemoryProcessor] Failed to resolve fallback LLM provider "
++                f"'{provider_id}': {e}"
++            )
++            return None
++        if provider is None or not hasattr(provider, "text_chat"):
++            logger.warning(
++                f"[MemoryProcessor] Fallback LLM provider '{provider_id}' is "
++                f"missing or not a chat provider, skipped"
++            )
++            return None
++        return provider
++
++    async def _resolve_llm_provider_chain(self) -> list[tuple[str, Any]]:
++        """Resolve providers in order: primary first, then configured fallbacks.
++
++        Unresolvable fallback IDs are logged and skipped; the same provider is
++        never added twice. An empty chain means no provider is available.
++        """
++        chain: list[tuple[str, Any]] = []
++        seen_ids: set[str] = set()
++        seen_objects: set[int] = set()
++
++        primary = await self._get_current_llm_provider()
++        if primary is not None:
++            configured_id = (
++                self._llm_provider if isinstance(self._llm_provider, str) else ""
++            )
++            label = self._provider_label(primary, configured_id)
++            chain.append((label, primary))
++            seen_ids.add(label)
++            seen_objects.add(id(primary))
++        elif self._fallback_provider_ids:
++            logger.warning(
++                "[MemoryProcessor] Primary LLM provider is unavailable, trying "
++                f"fallback providers: {self._fallback_provider_ids}"
++            )
++
++        for provider_id in self._fallback_provider_ids:
++            if provider_id in seen_ids:
++                continue
++            provider = self._resolve_fallback_provider(provider_id)
++            if provider is None:
++                continue
++            label = self._provider_label(provider, provider_id)
++            if label in seen_ids or id(provider) in seen_objects:
++                logger.warning(
++                    f"[MemoryProcessor] Fallback LLM provider '{provider_id}' "
++                    f"duplicates an earlier provider, skipped"
++                )
++                continue
++            chain.append((label, provider))
++            seen_ids.add(label)
++            seen_objects.add(id(provider))
++
++        return chain
++
+     def _load_prompts(self) -> None:
+         """从 PromptManager 加载提示词模板（支持用户自定义覆盖）"""
+         try:
+@@ -380,65 +538,125 @@ class MemoryProcessor:
+     async def _call_llm_with_retry(
+         self, prompt: str, system_prompt: str, max_retries: int = 2
+     ) -> str:
+-        """
+-        带指数退避的 LLM 调用
++        """Call the LLM with provider fallback, per-provider retry and timeout.
+ 
+-        仅对瞬时错误（超时、HTTP 429/5xx、连接错误）重试；解析/校验失败、
+-        参数/鉴权错误立即抛出，避免同一失败反复消耗 LLM 调用。默认共 2 次
+-        尝试（首次调用 + 1 次重试）。
++        Providers are tried in order: the configured/primary provider first,
++        then ``llm_fallback_provider_ids``. Inside one provider only transient
++        errors (timeout, HTTP 429/5xx, connection errors) are retried once;
++        authentication failures or exhausted retries switch to the next
++        provider. Parsing/validation/request-format errors are raised directly
++        because another model would fail the same way.
+ 
+-        按配置 `llm_stream_mode` 选择调用方式（issue #265）：
+-        `never` 始终非流式（旧行为），`always` 始终流式，`auto` 优先非流式，
+-        遇到"不支持非流式请求"错误时自动改用流式并记住该 Provider。
++        Streaming is selected by ``llm_stream_mode`` (issue #265): ``never``
++        always uses non-streaming, ``always`` always streams, ``auto`` prefers
++        non-streaming and remembers stream-only providers per provider id.
+ 
+         Args:
+-            prompt: 提示词
+-            system_prompt: 系统提示词
+-            max_retries: 最大尝试次数（含首次调用），默认 2
++            prompt: Prompt text.
++            system_prompt: System prompt text.
++            max_retries: Maximum attempts inside one provider (first call
++                included), default 2.
+ 
+         Returns:
+-            LLM 响应文本
++            LLM response text.
+ 
+         Raises:
+-            RuntimeError: Provider 不可用，或流式调用未返回完整结果
++            RuntimeError: No provider is available, or the streaming response
++                is incomplete.
++            Exception: The last provider error when every provider fails.
+         """
+-        # 未知取值（含配置缺失）安全回退为 auto
++        # Unknown/missing values fall back to auto.
+         stream_mode = self.config.get("llm_stream_mode", "auto")
+         if stream_mode not in ("auto", "always", "never"):
+             stream_mode = "auto"
+ 
+-        last_error = None
+-        for attempt in range(max_retries):
++        chain = await self._resolve_llm_provider_chain()
++        if not chain:
++            raise RuntimeError("LLM Provider 不可用")
++
++        tried: list[str] = []
++        last_error: BaseException | None = None
++        for index, (provider_id, provider) in enumerate(chain):
++            fallback_used = index > 0
+             try:
+-                provider = await self._get_current_llm_provider()
+-                if not provider:
+-                    raise RuntimeError("LLM Provider 不可用")
+-
+-                # 用 Provider ID 记住只接受流式的 Provider
+-                provider_config = getattr(provider, "provider_config", None)
+-                provider_key = (
+-                    str(provider_config.get("id", "default"))
+-                    if isinstance(provider_config, dict)
+-                    else str(id(provider))
++                return await self._call_provider_with_retry(
++                    provider=provider,
++                    provider_id=provider_id,
++                    fallback_used=fallback_used,
++                    prompt=prompt,
++                    system_prompt=system_prompt,
++                    stream_mode=stream_mode,
++                    max_retries=max_retries,
+                 )
++            except Exception as exc:
++                if not _is_provider_unavailable_error(exc):
++                    # Parse/validation/request-format errors are model-agnostic.
++                    raise
++                last_error = exc
++                tried.append(f"{provider_id} ({type(exc).__name__})")
++                if index + 1 < len(chain):
++                    logger.warning(
++                        f"[MemoryProcessor] LLM provider '{provider_id}' failed "
++                        f"({type(exc).__name__}: {exc}); falling back to "
++                        f"'{chain[index + 1][0]}' (tried: {', '.join(tried)})"
++                    )
++                else:
++                    logger.error(
++                        f"[MemoryProcessor] All LLM providers failed; last error "
++                        f"from '{provider_id}' ({type(exc).__name__}: {exc}); "
++                        f"tried: {', '.join(tried)}"
++                    )
++
++        if last_error is not None:
++            raise last_error
++        raise RuntimeError("LLM Provider 不可用")
++
++    async def _call_provider_with_retry(
++        self,
++        *,
++        provider: Any,
++        provider_id: str,
++        fallback_used: bool,
++        prompt: str,
++        system_prompt: str,
++        stream_mode: str,
++        max_retries: int,
++    ) -> str:
++        """Call one provider with the existing transient-error retry policy."""
++        provider_config = getattr(provider, "provider_config", None)
++        provider_key = (
++            str(provider_config.get("id", "default"))
++            if isinstance(provider_config, dict)
++            else str(id(provider))
++        )
++
++        last_error: BaseException | None = None
++        for attempt in range(max_retries):
++            try:
+                 use_stream = stream_mode == "always" or (
+                     stream_mode == "auto"
+                     and provider_key in self._stream_only_providers
+                 )
+                 if not use_stream:
+                     try:
+-                        response = await provider.text_chat(
+-                            prompt=prompt, system_prompt=system_prompt
++                        response = await asyncio.wait_for(
++                            provider.text_chat(
++                                prompt=prompt, system_prompt=system_prompt
++                            ),
++                            timeout=self._llm_call_timeout_seconds,
+                         )
+                         completion_text = response.completion_text
+                         record_llm_usage(
+                             getattr(response, "usage", None),
+                             prompt_text=prompt,
+                             completion_text=completion_text or "",
++                            provider_id=provider_id,
++                            fallback_used=fallback_used,
+                         )
+                         return completion_text
+                     except Exception as e:
+-                        # 仅当错误明确表示"不支持非流式"时才降级到流式
++                        # Only a clear "non-stream unsupported" error downgrades
++                        # to streaming; other errors keep the normal retry path.
+                         message = str(e).lower()
+                         if stream_mode != "auto" or (
+                             "non-stream" not in message and "non_stream" not in message
+@@ -446,27 +664,23 @@ class MemoryProcessor:
+                             raise
+                         self._stream_only_providers.add(provider_key)
+                         logger.warning(
+-                            "[MemoryProcessor] Provider 不支持非流式请求，"
+-                            f"本次自动改用流式调用: {e}"
++                            "[MemoryProcessor] Provider does not support "
++                            f"non-stream requests, switching to streaming: {e}"
+                         )
+ 
+-                # 流式接口逐块返回 is_chunk=True 的增量，最后返回一次
+-                # is_chunk=False 的完整响应；只有完整响应才可作为结果。
+-                # 中断、超时或缺少完整响应时按失败处理，避免写入不完整记忆。
+-                completion_text = None
+-                final_usage = None
+-                async for chunk in provider.text_chat_stream(
+-                    prompt=prompt, system_prompt=system_prompt
+-                ):
+-                    if not getattr(chunk, "is_chunk", True) and chunk.completion_text:
+-                        completion_text = chunk.completion_text
+-                        final_usage = getattr(chunk, "usage", None)
++                # Streaming: only a complete response (is_chunk=False) counts.
++                completion_text, final_usage = await asyncio.wait_for(
++                    self._collect_stream_response(provider, prompt, system_prompt),
++                    timeout=self._llm_call_timeout_seconds,
++                )
+                 if not completion_text:
+                     raise RuntimeError("流式调用未返回完整响应，已按失败处理")
+                 record_llm_usage(
+                     final_usage,
+                     prompt_text=prompt,
+                     completion_text=completion_text,
++                    provider_id=provider_id,
++                    fallback_used=fallback_used,
+                 )
+                 return completion_text
+             except Exception as e:
+@@ -475,14 +689,29 @@ class MemoryProcessor:
+                     raise
+                 wait_time = (2**attempt) + random.uniform(0, 1)
+                 logger.warning(
+-                    f"[MemoryProcessor] LLM 调用遇到瞬时错误，{wait_time:.1f}s 后重试 "
+-                    f"({attempt + 1}/{max_retries}): {e}"
++                    f"[MemoryProcessor] LLM call hit a transient error, retrying "
++                    f"in {wait_time:.1f}s ({attempt + 1}/{max_retries}): {e}"
+                 )
+                 await asyncio.sleep(wait_time)
+         if last_error:
+             raise last_error
+         raise RuntimeError("LLM 调用失败，未捕获到具体异常")
+ 
++    @staticmethod
++    async def _collect_stream_response(
++        provider: Any, prompt: str, system_prompt: str
++    ) -> tuple[str | None, Any]:
++        """Consume a streaming response and return complete text plus usage."""
++        completion_text = None
++        final_usage = None
++        async for chunk in provider.text_chat_stream(
++            prompt=prompt, system_prompt=system_prompt
++        ):
++            if not getattr(chunk, "is_chunk", True) and chunk.completion_text:
++                completion_text = chunk.completion_text
++                final_usage = getattr(chunk, "usage", None)
++        return completion_text, final_usage
++
+     _try_fix_json = staticmethod(try_fix_json)
+ 
+     async def process_conversation(
+diff --git a/core/processors/memory_processor_parse.py b/core/processors/memory_processor_parse.py
+index 8096d15f1964d5a8640def63f361e6c450e65ce6..08369bf27f5024784cfcfa101f65356a29ab47aa 100644
+--- a/core/processors/memory_processor_parse.py
++++ b/core/processors/memory_processor_parse.py
+@@ -360,15 +360,15 @@ def validate_summary_quality(structured_data: dict[str, Any]) -> str:
+     # 泛化词检测
+     generic_terms = [
+         "某用户",
+-        "有人",
+-        "某人",
+         "用户说",
+         "对方说",
+-        "群成员",
+         "某群成员",
+     ]
+     if any(term in summary for term in generic_terms):
+         return "low"
++    # dafeiyu: 「有人回我」「刷到有人…」是正常说法，只有拿匿名者当主语开头才算泛化
++    if summary.strip().startswith(("有人", "某人", "群成员")):
++        return "low"
+ 
+     return "normal"
+ 
+diff --git a/core/retrieval/bm25_retriever.py b/core/retrieval/bm25_retriever.py
+index a880bb4d58984c35d193737950f3355f90af7743..f5176e27a18ef94dcba2a54e2c2e037abe8289d3 100644
+--- a/core/retrieval/bm25_retriever.py
++++ b/core/retrieval/bm25_retriever.py
+@@ -14,7 +14,7 @@ import aiosqlite
+ from astrbot.api import logger
+ 
+ from ...storage.sqlite_connection import open_connection
+-from ..memory_scope import adapter_sql
++from ..memory_scope import adapter_sql, memory_scope_sql
+ from ..processors.text_processor import TextProcessor
+ 
+ _CJK_RUN = re.compile(r"[一-鿿]+")
+@@ -236,9 +236,12 @@ class BM25Retriever:
+         adapter_filter, adapter_params = adapter_sql(metadata_sql)
+         filters.append(adapter_filter)
+         params.extend(adapter_params)
+-        if session_id is not None:
+-            filters.append(f"json_extract({metadata_sql}, '$.session_id') = ?")
+-            params.append(session_id)
++        scope_clause, scope_params = memory_scope_sql(
++            f"json_extract({metadata_sql}, '$.session_id')", session_id
++        )
++        if scope_clause:
++            filters.append(scope_clause)
++            params.extend(scope_params)
+         if persona_id is not None:
+             filters.append(f"json_extract({metadata_sql}, '$.persona_id') = ?")
+             params.append(persona_id)
+diff --git a/core/retrieval/graph_vector_retriever.py b/core/retrieval/graph_vector_retriever.py
+index f3da63bdb39c90766d8da74ae6bbd329b9259a0a..167648d958b506c502db48d0e4f78a23e8308f5b 100644
+--- a/core/retrieval/graph_vector_retriever.py
++++ b/core/retrieval/graph_vector_retriever.py
+@@ -6,6 +6,7 @@ import json
+ from dataclasses import dataclass
+ from typing import Any
+ 
++from ..memory_scope import normalize_memory_scopes
+ from .vector_retriever import delete_faiss_documents_by_ids
+ from .vector_search import retrieve_vectors
+ 
+@@ -135,8 +136,9 @@ class GraphVectorRetriever:
+             return []
+ 
+         metadata_filters: dict[str, Any] = {}
+-        if session_id is not None:
+-            metadata_filters["session_id"] = session_id
++        scopes = normalize_memory_scopes(session_id)
++        if scopes is not None:
++            metadata_filters["session_id"] = scopes[0] if len(scopes) == 1 else scopes
+         if persona_id is not None:
+             metadata_filters["persona_id"] = persona_id
+ 
+diff --git a/core/retrieval/vector_retriever.py b/core/retrieval/vector_retriever.py
+index 504dfc00a72c28289dd5ee8d84a63fc6411cb8b0..63e283230b24bb0c7fa5d185dba8ccb9264b3364 100644
+--- a/core/retrieval/vector_retriever.py
++++ b/core/retrieval/vector_retriever.py
+@@ -10,6 +10,7 @@ from dataclasses import dataclass
+ from typing import TYPE_CHECKING, Any
+ 
+ from ..faiss_async_persist import get_async_persister
++from ..memory_scope import normalize_memory_scopes
+ from .vector_search import retrieve_vectors
+ 
+ if TYPE_CHECKING:
+@@ -246,8 +247,9 @@ class VectorRetriever:
+ 
+         # 构建元数据过滤器
+         metadata_filters = {}
+-        if session_id is not None:
+-            metadata_filters["session_id"] = session_id
++        scopes = normalize_memory_scopes(session_id)
++        if scopes is not None:
++            metadata_filters["session_id"] = scopes[0] if len(scopes) == 1 else scopes
+         if persona_id is not None:
+             metadata_filters["persona_id"] = persona_id
+ 
+diff --git a/core/retrieval/vector_search.py b/core/retrieval/vector_search.py
+index e37d90cafae92bd80faa42fe57f9f667ad307c7d..8568cad1034745d9cd2bfb748e681bb8e9b7ba30 100644
+--- a/core/retrieval/vector_search.py
++++ b/core/retrieval/vector_search.py
+@@ -6,7 +6,12 @@ from contextvars import ContextVar
+ from types import SimpleNamespace
+ 
+ from ..faiss_async_persist import get_async_persister
+-from ..memory_scope import adapter_sql, adapter_visible, current_adapter_access
++from ..memory_scope import (
++    adapter_sql,
++    adapter_visible,
++    current_adapter_access,
++    normalize_memory_scopes,
++)
+ 
+ query_embeddings = ContextVar("livingmemory_query_embeddings", default=None)
+ 
+@@ -16,7 +21,10 @@ async def retrieve_documents(
+ ):
+     """Apply request ownership in SQL before limiting host document reads."""
+     predicate, adapters = adapter_sql("metadata")
+-    if not adapters:
++    multi_value_filters = any(
++        isinstance(value, (list, tuple, set)) for value in metadata_filters.values()
++    )
++    if not adapters and not multi_value_filters:
+         return await db.document_storage.get_documents(
+             metadata_filters=metadata_filters, ids=ids, limit=limit, offset=offset
+         )
+@@ -27,8 +35,17 @@ async def retrieve_documents(
+         predicate = predicate.replace("?", f":adapter_{i}", 1)
+     conditions = [predicate]
+     for key, value in metadata_filters.items():
+-        conditions.append(f"json_extract(metadata, '$.{key}') = :filter_{key}")
+-        values[f"filter_{key}"] = value
++        scopes = normalize_memory_scopes(value)
++        if scopes is not None:
++            placeholders = ",".join(
++                f":filter_{key}_{index}" for index in range(len(scopes))
++            )
++            conditions.append(f"json_extract(metadata, '$.{key}') IN ({placeholders})")
++            for index, scope in enumerate(scopes):
++                values[f"filter_{key}_{index}"] = scope
++        else:
++            conditions.append(f"json_extract(metadata, '$.{key}') = :filter_{key}")
++            values[f"filter_{key}"] = value
+     if ids is not None:
+         if not ids:
+             return []
+@@ -105,6 +122,11 @@ async def retrieve_vectors(db, query, k, filters, *, source_key="id"):
+         if vector.size != storage.dimension or not np.isfinite(vector).all():
+             raise ValueError("Invalid query embedding")
+ 
++    # 作用域过滤值预先归一化，避免在候选循环里对每个命中重复解析。
++    python_filters = [
++        (key, normalize_memory_scopes(value), value) for key, value in filters.items()
++    ]
++
+     # 候选窗口翻倍重查时复用已取回的文档，避免每轮重复 SQL + JSON 解析；
+     # 每轮只需查询新增的 kNN id。
+     documents_by_id: dict[int, dict] = {}
+@@ -145,12 +167,17 @@ async def retrieve_vectors(db, query, k, filters, *, source_key="id"):
+             exhausted = len(ids) < fetch_k
+         else:
+             # Older host adapters expose only retrieve; preserve their public API.
++            host_filters = {
++                key: value
++                for key, value in filters.items()
++                if not isinstance(value, (list, tuple, set))
++            }
+             raw = await db.retrieve(
+                 query=query,
+                 k=fetch_k,
+                 fetch_k=fetch_k,
+                 rerank=False,
+-                metadata_filters=filters or None,
++                metadata_filters=host_filters or None,
+             )
+             exhausted = not filters and len(raw) < fetch_k
+ 
+@@ -169,7 +196,14 @@ async def retrieve_vectors(db, query, k, filters, *, source_key="id"):
+                 continue
+             if not adapter_visible(metadata):
+                 continue
+-            if any(metadata.get(key) != value for key, value in filters.items()):
++            if any(
++                (
++                    metadata.get(key) not in scopes
++                    if scopes is not None
++                    else metadata.get(key) != raw_value
++                )
++                for key, scopes, raw_value in python_filters
++            ):
+                 continue
+             identity = (
+                 hit.data.get("id") if source_key == "id" else metadata.get(source_key)
+diff --git a/core/tools/agentic_recall_common.py b/core/tools/agentic_recall_common.py
+index 560f1d1878046c41d532d1803b1efe5a64f655df..975f755cd0e71a76a0b6f4b816dcdd9be7d2843f 100644
+--- a/core/tools/agentic_recall_common.py
++++ b/core/tools/agentic_recall_common.py
+@@ -36,7 +36,7 @@ def bounded_status(data: dict[str, Any], max_chars: int = 500) -> str:
+ 
+ async def resolve_tool_access(
+     config_manager: Any, plugin_context: Any, wrapper_context: Any
+-) -> tuple[Any, str | None, str | None, dict[str, Any] | None]:
++) -> tuple[Any, str | None, str | None, str | None, dict[str, Any] | None]:
+     """解析工具调用的访问上下文；不允许时返回错误结构。
+ 
+     Args:
+@@ -46,13 +46,14 @@ async def resolve_tool_access(
+         wrapper_context: 工具调用层的 ContextWrapper，仅用于取当前事件。
+ 
+     Returns:
+-        (event, recall_session_id, recall_persona_id, error)。error 为 None 表示允许。
++        (event, recall_session_id, recall_persona_id, channel_scope, error)。
++        error 为 None 表示允许。
+     """
+     event = wrapper_context.context.event
+     access = await resolve_event_memory_access(config_manager, plugin_context, event)
+     if not access.allowed:
+-        return event, None, None, {"error": "memory access is not allowed"}
+-    return event, access.scope, access.persona_id, None
++        return event, None, None, None, {"error": "memory access is not allowed"}
++    return event, access.scope, access.persona_id, access.channel_scope, None
+ 
+ 
+ def _event_value(event: Any, method_name: str) -> str:
+diff --git a/core/tools/memory_agentic_search_tool.py b/core/tools/memory_agentic_search_tool.py
+index a5203a0673473329d299c64a83fc0e42a6640358..3989a726c5f80a796f46dedb9373a480e6f4ec9f 100644
+--- a/core/tools/memory_agentic_search_tool.py
++++ b/core/tools/memory_agentic_search_tool.py
+@@ -160,6 +160,7 @@ class AgenticMemorySearchTool(FunctionTool[AstrAgentContext]):
+             event,
+             recall_session_id,
+             recall_persona_id,
++            channel_scope,
+             access_error,
+         ) = await resolve_tool_access(self.config_manager, self.context, context)
+         with adapter_access(self.config_manager, event):
+@@ -260,16 +261,21 @@ class AgenticMemorySearchTool(FunctionTool[AstrAgentContext]):
+                 requested_k = default_k
+             limited_k = max(1, min(requested_k, max_k))
+ 
++            agentic_kwargs: dict[str, Any] = {
++                "target": normalized_target,
++                "query": cleaned_query,
++                "k": limited_k,
++                "session_id": recall_session_id,
++                "persona_id": recall_persona_id,
++                "identity_key": identity_key,
++            }
++            if channel_scope:
++                agentic_kwargs["extra_scopes"] = [channel_scope]
+             try:
+                 outcome, _, timed_out = await run_within_budget(
+                     budget,
+                     lambda: self.memory_engine.search_memories_agentic(
+-                        target=normalized_target,
+-                        query=cleaned_query,
+-                        k=limited_k,
+-                        session_id=recall_session_id,
+-                        persona_id=recall_persona_id,
+-                        identity_key=identity_key,
++                        **agentic_kwargs,
+                         identity_candidates=identity_candidates,
+                         start_ts=start_ts,
+                         end_ts=end_ts,
+diff --git a/core/tools/memory_forget_tool.py b/core/tools/memory_forget_tool.py
+index d0eab08c6f1a258b9752744d2ba767bafc7849be..efca63ac81d82fa40d2056868cf72bb9c8ba7475 100644
+--- a/core/tools/memory_forget_tool.py
++++ b/core/tools/memory_forget_tool.py
+@@ -114,6 +114,7 @@ class MemoryForgetTool(FunctionTool[AstrAgentContext]):
+                 event,
+                 recall_session_id,
+                 recall_persona_id,
++                _channel_scope,
+                 access_error,
+             ) = await resolve_tool_access(self.config_manager, self.context, context)
+             with adapter_access(self.config_manager, event):
+diff --git a/core/tools/memory_read_tool.py b/core/tools/memory_read_tool.py
+index 5e438617f134d7be14bb9a4f508ade55b0963cb3..a8d6e90b138964635ebb85eadbc6a478a7756e70 100644
+--- a/core/tools/memory_read_tool.py
++++ b/core/tools/memory_read_tool.py
+@@ -107,6 +107,7 @@ class MemoryReadTool(FunctionTool[AstrAgentContext]):
+             event,
+             recall_session_id,
+             recall_persona_id,
++            _channel_scope,
+             access_error,
+         ) = await resolve_tool_access(self.config_manager, self.context, context)
+         with adapter_access(self.config_manager, event):
+diff --git a/core/tools/memory_search_tool.py b/core/tools/memory_search_tool.py
+index 1b0c2320b8cb8031ea448cdfd30b5a08f9909542..17ebfa1b54f383323c3a77c32ca903ef0d991050 100644
+--- a/core/tools/memory_search_tool.py
++++ b/core/tools/memory_search_tool.py
+@@ -133,12 +133,16 @@ class MemorySearchTool(FunctionTool[AstrAgentContext]):
+ 
+                 limited_k = max(1, min(requested_k_int, max_k))
+ 
+-                memories = await self.memory_engine.search_memories(
+-                    query=cleaned_query,
+-                    k=limited_k,
+-                    session_id=recall_session_id,
+-                    persona_id=recall_persona_id,
+-                )
++                channel_scope = access.channel_scope
++                search_kwargs: dict[str, Any] = {
++                    "query": cleaned_query,
++                    "k": limited_k,
++                    "session_id": recall_session_id,
++                    "persona_id": recall_persona_id,
++                }
++                if channel_scope:
++                    search_kwargs["extra_scopes"] = [channel_scope]
++                memories = await self.memory_engine.search_memories(**search_kwargs)
+ 
+                 serialized_results = []
+                 for memory in memories:
+diff --git a/storage/atom_store.py b/storage/atom_store.py
+index 94c0e312aead8ff1ab181e763c43c9fec9e5fa47..37e35a3b742b4232f7a0223249075cb0cdfdabfe 100644
+--- a/storage/atom_store.py
++++ b/storage/atom_store.py
+@@ -12,7 +12,7 @@ import aiosqlite
+ 
+ from astrbot.api import logger
+ 
+-from ..core.memory_scope import adapter_sql
++from ..core.memory_scope import adapter_sql, memory_scope_sql
+ from ..core.models.memory_atom import (
+     AtomStatus,
+     AtomType,
+@@ -380,9 +380,10 @@ class AtomStore:
+         params: list[Any] = [fts_query]
+         if not include_expired:
+             params.append(time.time())
+-        if session_id is not None:
+-            filters.append("ma.session_id = ?")
+-            params.append(session_id)
++        scope_clause, scope_params = memory_scope_sql("ma.session_id", session_id)
++        if scope_clause:
++            filters.append(scope_clause)
++            params.extend(scope_params)
+         if persona_id is not None:
+             filters.append("ma.persona_id = ?")
+             params.append(persona_id)
+@@ -422,14 +423,14 @@ class AtomStore:
+                 )
+                 if not include_expired:
+                     like_params_full.append(time.time())
+-                session_filter = (
+-                    "AND ma.session_id = ?" if session_id is not None else ""
++                scope_clause, scope_params = memory_scope_sql(
++                    "ma.session_id", session_id
+                 )
++                session_filter = f"AND {scope_clause}" if scope_clause else ""
+                 persona_filter = (
+                     "AND ma.persona_id = ?" if persona_id is not None else ""
+                 )
+-                if session_id is not None:
+-                    like_params_full.append(session_id)
++                like_params_full.extend(scope_params)
+                 if persona_id is not None:
+                     like_params_full.append(persona_id)
+                 like_params_full.extend(ownership_params)
+diff --git a/storage/graph_store_read.py b/storage/graph_store_read.py
+index bab8867c18388cd42585208ddffc46fafe2ab6f9..ed784b894d98a2246f7a3ae109ffc53466071176 100644
+--- a/storage/graph_store_read.py
++++ b/storage/graph_store_read.py
+@@ -13,7 +13,7 @@ import aiosqlite
+ 
+ from astrbot.api import logger
+ 
+-from ..core.memory_scope import adapter_sql
++from ..core.memory_scope import adapter_sql, memory_scope_sql
+ from ..core.utils.json_utils import safe_json_dict
+ from ..core.utils.number_utils import safe_float
+ 
+@@ -201,9 +201,10 @@ class GraphStoreReadMixin:
+         """Search graph entries through the FTS table."""
+         filters: list[str] = []
+         params: list[Any] = [fts_query]
+-        if session_id is not None:
+-            filters.append("ge.session_id = ?")
+-            params.append(session_id)
++        scope_clause, scope_params = memory_scope_sql("ge.session_id", session_id)
++        if scope_clause:
++            filters.append(scope_clause)
++            params.extend(scope_params)
+         if persona_id is not None:
+             filters.append("ge.persona_id = ?")
+             params.append(persona_id)
+@@ -360,9 +361,10 @@ class GraphStoreReadMixin:
+         filters: list[str] = []
+         params: list[Any] = list(node_ids)
+ 
+-        if session_id is not None:
+-            filters.append("ge.session_id = ?")
+-            params.append(session_id)
++        scope_clause, scope_params = memory_scope_sql("ge.session_id", session_id)
++        if scope_clause:
++            filters.append(scope_clause)
++            params.extend(scope_params)
+         if persona_id is not None:
+             filters.append("ge.persona_id = ?")
+             params.append(persona_id)

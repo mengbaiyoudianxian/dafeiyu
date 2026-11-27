@@ -1,6 +1,6 @@
 {
   "enable": true,
-  "judge_provider_id": "",
+  "judge_provider_id": "grok/grok-4.6",
   "change_scale": 1.0,
   "owner_floor": 30,
   "happy_base": 60,
@@ -8,5 +8,7 @@
   "sleep_hours": "1-8",
   "morning_hours": "8-10",
   "night_hours": "23-1",
-  "owner_umo": ""
+  "owner_umo": "",
+  "review_every": 20,
+  "review_provider_id": "grok/grok-4.6"
 }

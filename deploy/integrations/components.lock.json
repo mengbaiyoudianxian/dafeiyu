@@ -1,0 +1,32 @@
+{
+  "reader": {
+    "playwright": "1.65.1",
+    "chromium_revision": "1254",
+    "chromium_version": "158.0.8127.18",
+    "novnc_git": "https://github.com/novnc/noVNC.git",
+    "novnc_tag": "v1.5.0",
+    "novnc_commit": "7fcf9dcfe0cc5b14e3841a4429dc091a6ffca861",
+    "ubuntu_24_04_packages": {
+      "xvfb": "2:21.1.12-1ubuntu1.9",
+      "x11vnc": "0.9.16-10",
+      "websockify": "0.10.0+dfsg1-5build2",
+      "xauth": "1:1.1.2-1build1",
+      "apparmor": "4.0.1really4.0.1-0ubuntu0.24.04.5"
+    }
+  },
+  "anime-studio": {
+    "transport": "stdio",
+    "node": "22.22.2",
+    "version": "2026.11.08-14",
+    "vendor_manifest": "https://manzaoai.top/mcp/manifest.json",
+    "files_sha256": {
+      "mcp.js": "cb389f1d64934582c520e1b1ef82dd0a6d552f4bfb1cbc0cece809495e524de2",
+      "mcp-core.js": "edbef50821e0125549520a857f67356beb3522b00dbab2ec4f330a9da842f785",
+      "AGENTS.md": "94f82e1e3c0c97812d1262682869fe4052b4caa51d8ed33871e738382228f11c",
+      "skills/anime-studio/SKILL.md": "76c7421545fef25dc428d9e89653d5ec869cb2621f35ea9aa9c3e9ee3efd127f",
+      "skills/anime-studio/references/api.md": "7d3fe1d101189a9aac1e1332dc6f0d376bf01d8d3d33a0659509659027bb416e",
+      "skills/anime-studio/references/connection.md": "45781cd3d82a4fd16953b2552a5a30529d97c294baf4bae9fac4bce55cf5c961",
+      "skills/anime-studio/references/features.md": "963ff05e7e35cdf64cd75770e80a6a1cf81aa920b03bb81a2e6accf0006bccd4"
+    }
+  }
+}

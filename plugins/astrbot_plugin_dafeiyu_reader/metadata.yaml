@@ -1,0 +1,8 @@
+name: astrbot_plugin_dafeiyu_reader
+display_name: 大肥鱼的私人漫画书架
+desc: 自主选书、顺序读页，记录个人喜好、阅读进度与读后感。
+help: 在主人私聊中询问最近看过的漫画，或使用 /漫画状态 查看阅读记录数。
+version: v0.1.0
+author: dafeiyu-local
+support_platforms:
+  - aiocqhttp

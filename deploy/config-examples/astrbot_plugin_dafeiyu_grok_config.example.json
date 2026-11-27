@@ -1,0 +1,12 @@
+{
+  "auth_file": "/opt/dafeiyu/private/grok-auth.json",
+  "source_id": "grok",
+  "refresh_margin_minutes": 45,
+  "self_looks": "",
+  "image_model": "grok-imagine-image-2.0",
+  "image_daily_limit": 30,
+  "video_model": "grok-imagine-video-1.5-lite",
+  "video_seconds": 5,
+  "video_daily_limit": 10,
+  "owner_umo": ""
+}

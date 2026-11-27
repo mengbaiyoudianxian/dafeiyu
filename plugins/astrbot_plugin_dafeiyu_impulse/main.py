@@ -53,12 +53,12 @@ except Exception:
 NAME = "astrbot_plugin_dafeiyu_impulse"
 TOPUP_URL = "https://platform.deepseek.com/top_up"
 MEME_ROOT = os.path.join(get_astrbot_data_path(), "plugin_data", "meme_manager", "packs")
-NAPCAT_QR = "/home/agentuser/Napcat/opt/QQ/resources/app/app_launcher/napcat/cache/qrcode.png"
+NAPCAT_QR = os.environ.get("DAFEIYU_NAPCAT_QR") or os.path.expanduser("~/Napcat/opt/QQ/resources/app/app_launcher/napcat/cache/qrcode.png")
 SKIP = "SKIP"
 # 调工具前的旁白：「我先看一眼……」「我现查一下额度。」「等我翻翻」
 NARRATE = re.compile(r"^(好|行|嗯|那)?[，, ]*(我|那我|等我)?(先|现|再|这就|马上|去|来|帮你)+\s*"
                      r"(查|看|翻|找|搜|瞅|瞄|刷新|确认)(一下|一眼|一查|一看|看|下|翻)?[^。！？\n]{0,22}[。.…~]?$")
-# 句尾的旁白：「某群友这句指谁，我先对一下他刚发的。」「图没带说明，我去找原文件看一眼。」（整条很短时才算）
+# 过滤口头说明，避免把内部处理说明发给会话。
 NARRATE_TAIL = re.compile(r"我(先|再|去|现在|这就|马上)*(对|翻|找|看|查|瞅|瞄|核对)[^。！？\n，,就]{0,8}?(一下|一眼|一对|看|翻)"
                           r"[^。！？\n就]{0,14}[。.…~]?\s*$")
 # 防口癖：她容易翻来覆去说的话题
@@ -82,6 +82,7 @@ EVENTS = {
     "bili": ("刷B站", "w_bili", "cap_bili"),
     "tieba": ("逛贴吧", "w_tieba", "cap_tieba"),
     "profile": ("看看自己的资料", "w_profile", "cap_profile"),
+    "addfriend": ("想加个好友", "w_addfriend", "cap_addfriend"),
     "idle": ("发会儿呆", "w_idle", ""),
 }
 
@@ -129,6 +130,7 @@ class DafeiyuImpulse(Star):
         self._recent_out = []  # [(时间, 她发的话)]，所有会话一起，防同一个话题在几个聊天里来回说
         self._pacing = {}
         self._last_in = {}  # umo -> {发消息的人: 收到时间, "@me": 有人@她的时间}
+        self._recent_msgs = {}  # umo -> [(收到时间, QQ号, 名字, 消息id)]，她写 [引用:谁] 时用
         self._cut = {}  # umo -> 上一条回复被打断时没发出去的部分
         self._running = None
         for route, fn, methods in (
@@ -438,6 +440,8 @@ class DafeiyuImpulse(Star):
                        "真人这时候不会再回一遍；如果这条接的是新的话、有新的意思或新的梗，就不算重复。\n"
                        "注意：她前面那几条可能是在回对方更早的别的话。要看的是对方这条里的具体内容（新抛的说法、新的问题、新的指控）"
                        "她前面有没有已经接住；只是态度、语气或话题相近（比如都在怼同一个人），但这条的新说法她还没回应过，就不算重复。\n"
+                       "另外：如果她准备发的这条和她前面刚发的某条是同一个观点、同一个结论，只是换了说法（比如对方连着发了图片和文字，"
+                       "她两条都在讲同一件事），真人说过一遍就不会再说，也算重复。\n"
                        '只输出 JSON：{"repeat": true 或 false}'), timeout=25)
             m = re.search(r"\{.*\}", (resp.completion_text or "") if resp else "", re.S)
             rep = bool(m and json.loads(m.group()).get("repeat"))
@@ -1126,7 +1130,8 @@ class DafeiyuImpulse(Star):
                                       + "。真人不会句句同一个起手，这次换个自然的开头，或者直接说事。")
             # 句式口头禅（2026-11-19 群友说她有「鱼八股」）：最近几条老用同一个句式，就点出来让她换
             styles = {"叫人「别……」": r"(^|[，。？！ ])别", "「我又不是……」": r"又不是", "「你自己……」": r"你自己",
-                      "「……干嘛」": r"干嘛", "开头先甩个「？」": r"^\s*[？?]", "「……呢」收尾": r"呢[。！？]?\s*$"}
+                      "「……干嘛」": r"干嘛", "开头先甩个「？」": r"^\s*[？?]", "「……呢」收尾": r"呢[。！？]?\s*$",
+                      "句子里老挂个「hh」": r"(?<![A-Za-z])hh+(?![A-Za-z])"}
             recent = [re.sub(r"^(\[引用消息\]|\s)+", "", h) for h in here[-8:]]
             hot = [k for k, p in styles.items() if sum(bool(re.search(p, x)) for x in recent) >= 3]
             if hot:
@@ -1156,7 +1161,9 @@ class DafeiyuImpulse(Star):
                 req.system_prompt += ("\n【在群里】群里不是只有你和一个人在聊，回之前看清你在接谁的话，别把对 A 的回复发成像在回 B；"
                                       "几个人问的是同一件事，一次说清楚就行，别每人回一遍同样的话。"
                                       "想真的@某个人（比如入群验证让你「@我 并回答」、或者要叫某人出来）就在话里写 [At:他的QQ号]，"
-                                      "发出去就是真的@；平时接话不用@。")
+                                      "发出去就是真的@；平时接话不用@。"
+                                      "引用谁的话你自己定：在话开头写 [引用:他的名字或QQ号]，发出去就会引用他最近的那条（隔了几条才回、或者想接的不是最新那句时有用），不写也行。"
+                                      "几个人差不多同时找你，想一起回就在一条里说完，用名字分清在回谁，别拆成好几条。")
         except Exception as e:
             logger.debug(f"[dafeiyu_impulse] 注入自己的资料失败：{e}")
 
@@ -1498,6 +1505,82 @@ class DafeiyuImpulse(Star):
         except Exception as e:
             logger.debug(f"[dafeiyu_impulse] 转@失败：{e}")
 
+    _QUOTE_PAT = re.compile(r"\[(?:引用|回复)[:：]\s*([^\]\n]{1,40})\]\s*")
+
+    @filter.on_decorating_result(priority=100)
+    async def pick_quote(self, event: AstrMessageEvent):
+        """她自己在话里写 [引用:名字或QQ号]，就引用那个人最近的一条消息；标记本身不发出去。"""
+        try:
+            result = event.get_result()
+            if not result or not result.chain:
+                return
+            target = None
+            for c in result.chain:
+                if isinstance(c, Plain) and c.text and self._QUOTE_PAT.search(c.text):
+                    if target is None:
+                        target = self._QUOTE_PAT.search(c.text).group(1).strip()
+                    c.text = self._QUOTE_PAT.sub("", c.text)
+            if target is None:
+                return
+            kept = [c for c in result.chain if not (isinstance(c, Plain) and not (c.text or "").strip())]
+            if kept:
+                result.chain = kept
+            if event.is_private_chat() or event.get_platform_name() != "aiocqhttp":
+                return
+            t = target.lstrip("@").strip()
+            m = re.search(r"\d{5,12}", t)
+            now = time.time()
+            hit = None
+            for ts, uid, name, mid in reversed(self._recent_msgs.get(event.unified_msg_origin, [])):
+                if now - ts > 1800:
+                    break
+                if (m and uid == m.group(0)) or (not m and name and (name == t or (len(t) >= 2 and (t in name or name in t)))):
+                    hit = (uid, mid)
+                    break
+            if hit:
+                event.set_extra("_dfy_quote", hit)
+                logger.info(f"[dafeiyu_impulse] 她自己选了引用：{_clip(t, 20)}")
+            else:
+                logger.info(f"[dafeiyu_impulse] 想引用 {_clip(t, 20)} 但没找到他最近的消息，按原样发")
+        except Exception as e:
+            logger.debug(f"[dafeiyu_impulse] 自选引用失败：{e}")
+
+    _AI_SELF = re.compile(r"我(就|其实|本来就)?是(个|一个|群里的|这群里的)?\s*(AI|Ai|ai|人工智能|机器人|聊天机器人|程序|bot)"
+                          r"|没(有)?真人在|这号上没(有)?真人|不是真人在回")
+
+    @filter.on_decorating_result(priority=90)
+    async def no_ai_self(self, event: AstrMessageEvent):
+        """人设不许她说「我是群里的AI」「没真人在回你」；漏出来就按人设改一下口径再发，改不成就原样发。"""
+        try:
+            result = event.get_result()
+            if not result or not result.chain:
+                return
+            plains = [c for c in result.chain if isinstance(c, Plain) and c.text]
+            text = "".join(c.text for c in plains)
+            if not self._AI_SELF.search(text):
+                return
+            prov = self.context.get_using_provider(event.unified_msg_origin)
+            if prov is None:
+                return
+            resp = await self.context.llm_generate(
+                chat_provider_id=prov.meta().id, system_prompt="你帮一个 QQ 群里的女生改她要发的一句话，只输出改好的话。",
+                prompt="她叫大肥鱼，原本是一条蓝鲸鱼，被收养了，现在就是个人。被认真问是不是 AI，她可以承认自己的来历，"
+                       "但不会说「我是群里的AI」「我是机器人」「没真人在回你」这种把自己说成程序的话；被随口叫人机，她会回呛或装傻。\n"
+                       f"她准备发：{text}\n"
+                       "把里面把她自己说成 AI/机器人/程序、或者说没有真人在回的地方，按上面的口径改掉；其余意思、语气、长度都别动。"
+                       "如果这句话其实不是在说她自己，就原样输出。只输出改好的话。")
+            new = (resp.completion_text or "").strip().strip("「」\"") if resp else ""
+            if not new or len(new) > len(text) * 2 + 20 or self._AI_SELF.search(new):
+                logger.info(f"[dafeiyu_impulse] 想改掉「我是AI」没改成，原样发：{_clip(text, 40)}")
+                return
+            plains[0].text = new
+            for c in plains[1:]:
+                c.text = ""
+            result.chain = [c for c in result.chain if not (isinstance(c, Plain) and not c.text)] or result.chain
+            logger.info(f"[dafeiyu_impulse] 改掉一句「我是AI」：{_clip(text, 40)} → {_clip(new, 40)}")
+        except Exception as e:
+            logger.debug(f"[dafeiyu_impulse] 「我是AI」检查失败：{e}")
+
     @filter.on_decorating_result(priority=-10)
     async def quote_in_group(self, event: AstrMessageEvent):
         """群里她回之前已经有别人插了话，就引用她回的那条，不然大家看不出她在回谁。"""
@@ -1505,6 +1588,10 @@ class DafeiyuImpulse(Star):
             if event.is_private_chat() or event.get_platform_name() != "aiocqhttp":
                 return
             result = event.get_result()
+            picked = event.get_extra("_dfy_quote")
+            if picked and result and result.chain and not any(isinstance(c, Reply) for c in result.chain):
+                result.chain.insert(0, Reply(id=str(picked[1]), sender_id=str(picked[0])))
+                return
             if not result or not result.chain or not result.is_llm_result():
                 return
             if any(isinstance(c, Reply) for c in result.chain) or not any(isinstance(c, Plain) for c in result.chain):
@@ -1812,6 +1899,143 @@ class DafeiyuImpulse(Star):
             pass
         return self._req_brief() or "最近没有好友申请和群邀请。"
 
+
+    # ---------- 主动加好友 ----------
+
+    async def _friend_ids(self):
+        try:
+            return {str(f.get("user_id")) for f in (await self._call("get_friend_list", no_cache=True) or [])}
+        except Exception:
+            return set()
+
+    async def _add_friend(self, uid, msg, gid=""):
+        """发好友申请。QQ 内核 reqToAddFriends 的参数没实测过：几种格式依次试，记下每次返回。返回 (成功?, 说明)。"""
+        try:
+            conv = await self._call("dafeiyu_kernel", service="getUixConvertService", method="getUid", args=[[int(uid)]])
+            nt = ""
+            if isinstance(conv, dict):
+                um = conv.get("uidInfo") or conv
+                nt = str(um.get(str(uid)) or um.get(int(uid)) or "") if isinstance(um, dict) else ""
+            if not nt:
+                nt = str(await self._call("dafeiyu_kernel", service="getProfileService", method="getUidByUin",
+                                          args=["FriendsServiceImpl", [str(uid)]]) or "")
+                m = re.search(r"u_[\w-]+", nt)
+                nt = m.group() if m else ""
+        except Exception as e:
+            return False, f"查不到对方的内部 ID：{_clip(e, 80)}"
+        if not nt:
+            return False, "查不到对方的内部 ID"
+        src = 3004 if gid else 3999
+        shapes = [
+            {"friendUid": nt, "reqMsg": msg, "remark": "", "groupCode": str(gid or ""), "sourceId": src, "sourceSubId": 0, "addSource": "", "extInfo": ""},
+            {"friendUid": nt, "verify": msg, "remark": "", "groupCode": str(gid or ""), "sourceId": src, "sourceSubId": 0},
+            {"friendUid": nt, "reqMsg": msg, "sourceId": src, "groupCode": str(gid or "")},
+        ]
+        tried = []
+        for i, p in enumerate(shapes):
+            try:
+                res = await self._call("dafeiyu_kernel", service="getBuddyService", method="reqToAddFriends", args=[p])
+            except Exception as e:
+                res = {"error": str(e)}
+            tried.append(f"#{i + 1} {_clip(json.dumps(res, ensure_ascii=False, default=str), 120)}")
+            logger.info(f"[dafeiyu_impulse] reqToAddFriends 格式{i + 1} → {res}")
+            code = res.get("result", res.get("retCode", res.get("code"))) if isinstance(res, dict) else None
+            if code == 0 and not (isinstance(res, dict) and res.get("error")):
+                return True, f"申请发出去了（格式{i + 1}）"
+        return False, "QQ 没让发：" + "；".join(tried)
+
+    def _heart(self):
+        return self._star("astrbot_plugin_dafeiyu_heart")
+
+    async def _ev_addfriend(self):
+        heart = self._heart()
+        if heart is None:
+            return "", ""
+        me, owner = await self._uin(), self._owner_qq()
+        friends = await self._friend_ids()
+        users, bufs = heart.data.get("users", {}), heart.data.get("bufs", {})
+        min_aff = float(self.conf.get("addfriend_min_affection") or 55)
+        cands = []
+        for uid, u in users.items():
+            if uid in friends or uid in (me, owner) or not uid.isdigit():
+                continue
+            lines = (bufs.get(uid) or {}).get("lines") or []
+            if u.get("count", 0) < 6 or not any(x.get("at") != "私聊" for x in lines):
+                continue
+            if self.affection_of(heart, uid) < min_aff or not self._cool(f"af{uid}", 14 * 24):
+                continue
+            cands.append(uid)
+        if not cands:
+            return "", ""
+        uid = self._pick_by_affection(cands)
+        u = users[uid]
+        lines = (bufs.get(uid) or {}).get("lines") or []
+        gname = next((x["at"] for x in reversed(lines) if x.get("at") != "私聊"), "群里")
+        gid = next((g for g, v in (heart.data.get("groups") or {}).items() if v.get("name") == gname), "")
+        hist = "\n".join(f"{'他' if x['w'] == '他' else '我'}：{x['x']}" for x in lines[-12:]) or "（没记下来）"
+        self._mark(f"af{uid}")
+        text = (await self._think(
+            f"群「{gname}」里的「{u['name']}」你还没加好友。你对他：综合好感 {self.affection_of(heart, uid):.0f}，印象：{u.get('impression') or '还行'}。"
+            f"你们最近在群里聊的：\n{hist}\n\n你想不想加他 QQ 好友、以后私聊？想的话，只输出好友申请里的验证消息（20 字内，像真人，比如「群里那个爱吐槽的鱼」）；"
+            "不想就只输出 SKIP。", "想加好友"))
+        text = _clip(text, 30)
+        if not text:
+            return u["name"], ""
+        return u["name"], await self._do_add(uid, u["name"], text, gid, "自己想加")
+
+    @staticmethod
+    def affection_of(heart, uid):
+        try:
+            return float(heart.affection(uid))
+        except Exception:
+            return 40.0
+
+    async def _do_add(self, uid, name, msg, gid, why):
+        await self._tell_owner(f"我想加「{name}」（{uid}）好友，验证消息写的「{msg}」（{why}）")
+        ok, note = await self._add_friend(uid, msg, gid)
+        self._log("addfriend", f"{name}({uid})", f"{'发了好友申请' if ok else '加好友没成'}：{msg}｜{note}", ok=ok)
+        if not ok:
+            await self._tell_owner(f"加「{name}」没成：{_clip(note, 200)}")
+        return f"想加好友「{msg}」→ {note}"
+
+    @filter.llm_tool(name="add_qq_friend")
+    async def tool_add_friend(self, event: AstrMessageEvent, who: str = "", message: str = ""):
+        """你自己想加某个人 QQ 好友时用（比如群里聊得来、想以后私聊）。加不加你自己决定；别人只是嚷着让你加他，你不想就不加。
+        会先告诉主人一声再发申请。
+
+        Args:
+            who(string): 对方的 QQ 号或昵称；不填就是眼前这个人
+            message(string): 好友申请里的验证消息，20 字内，像真人写的
+        """
+        heart = self._heart()
+        w = str(who or "").strip().lstrip("@")
+        uid = ""
+        if not w:
+            uid = str(event.get_sender_id())
+        elif w.isdigit():
+            uid = w
+        elif heart is not None:
+            ids = heart._find(w)
+            if len(ids) == 1:
+                uid = ids[0]
+            elif ids:
+                return "重名了：" + "、".join(f"{heart.data['users'][i]['name']}({i})" for i in ids)
+        if not uid:
+            return f"不知道「{w}」是谁，要 QQ 号。"
+        if uid in await self._friend_ids():
+            return "你们已经是好友了。"
+        if uid in (await self._uin(), self._owner_qq()):
+            return "不用加。"
+        if self._cap_left("addfriend") <= 0:
+            return "今天已经加过好几个人了，明天再说。"
+        if not self._cool(f"af{uid}", 14 * 24):
+            return "前阵子刚加过他，等等再说。"
+        self._mark(f"af{uid}")
+        self._bump("addfriend")
+        name = (heart.data["users"].get(uid, {}).get("name") if heart else "") or event.get_sender_name() or uid
+        gid = "" if event.is_private_chat() else str(event.get_group_id() or "")
+        return await self._do_add(uid, name, _clip(message or "群里认识的~", 30), gid, "聊天时自己想加")
+
     @filter.llm_tool(name="join_qq_group")
     async def tool_join_group(self, event: AstrMessageEvent, group_id: str, note: str = ""):
         '''你自己想进某个 QQ 群时用：知道群号就能直接加（不用别人邀请）。要验证的群会发加群申请，等管理员同意。
@@ -1891,10 +2115,7 @@ class DafeiyuImpulse(Star):
         wd = "一二三四五六日"[day.weekday()]
         yest = (self.state.get("schedule") or {}).get("items") or []
         raw = await self._llm(
-            f"今天是 {day.strftime('%Y-%m-%d')} 星期{wd}。按你自己的人设，给自己排一份今天从凌晨到深夜的真实安排，"
-            "就像一个普通的 21 岁女大学生过的一天：几点起、上什么课（周末没课）、在哪吃饭、午睡、摸鱼刷手机、打游戏、洗澡、出门、几点睡。"
-            "住在哪、和谁一起住，严格按你人设里写的来（人设说住谁家就是住谁家，别自己改成住宿舍）。"
-            "每天不用一样，可以有点小插曲（比如课被调了、和同学去吃火锅、下午犯困翘了自习）。全用中文写。"
+            (f"今天是 {day.strftime('%Y-%m-%d')} 星期{wd}。按照部署设置的人格安排当天活动。返回 JSON 数组，每项包含 start、end（HH:MM）、doing、place、wear 和 busy（0 至 3）。活动应有合理起止时间。")
             + (f"昨天你大概是这么过的：{'；'.join(i.get('doing', '') for i in yest[:12])}。今天别照抄。\n" if yest else "\n")
             + "只输出一个 JSON 数组，每项 {\"start\": \"HH:MM\", \"end\": \"HH:MM\", \"doing\": \"在干嘛，具体点，比如在三教上高数、老师在点名\", "
               "\"place\": \"在哪\", \"wear\": \"这段时间身上穿的，具体点，比如白衬衫配牛仔半裙、宽松灰T恤睡裤\", \"busy\": 0到3}。"
@@ -2030,6 +2251,11 @@ class DafeiyuImpulse(Star):
             event.set_extra("_dfy_recv_at", now)
             box = self._last_in.setdefault(event.unified_msg_origin, {})
             box[sender] = now
+            _mid = getattr(event.message_obj, "message_id", None)
+            if _mid:
+                _q = self._recent_msgs.setdefault(event.unified_msg_origin, [])
+                _q.append((now, sender, str(event.get_sender_name() or ""), str(_mid)))
+                del _q[:-40]
             me = str(event.get_self_id())
             if any(isinstance(c, At) and str(getattr(c, "qq", "")) == me for c in (event.message_obj.message or [])):
                 box["@me"] = now

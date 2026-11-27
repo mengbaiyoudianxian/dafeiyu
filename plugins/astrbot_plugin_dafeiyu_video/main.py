@@ -12,6 +12,7 @@
 - 出任何错都只记日志，不影响她正常回话。
 """
 
+import asyncio
 import os
 import shutil
 import time
@@ -108,13 +109,36 @@ class DafeiyuVideo(Star):
         except Exception:  # noqa: BLE001
             pass
         bot = getattr(event, "bot", None)
-        if bot is None:
-            raise FileNotFoundError("拿不到语音文件，也没法问 NapCat")
-        r = await bot.api.call_action("get_record", file=getattr(rec, "file", "") or "", out_format="wav")
-        path = (r or {}).get("file") or ""
-        if not path or not os.path.exists(path):
-            raise FileNotFoundError(f"NapCat 也没给出语音文件：{path or '空'}")
-        return path
+        last = "没法问 NapCat"
+        if bot is not None:
+            # 刚收到时 NapCat 可能还没把语音存到本地，get_record 会报 file not found；等一下再要
+            for wait in (0, 1.5, 3):
+                if wait:
+                    await asyncio.sleep(wait)
+                try:
+                    r = await bot.api.call_action("get_record", file=getattr(rec, "file", "") or "", out_format="wav")
+                    path = (r or {}).get("file") or ""
+                    if path and os.path.exists(path):
+                        return path
+                    last = f"NapCat 给的路径不存在：{path or '空'}"
+                except Exception as e:  # noqa: BLE001
+                    last = f"{type(e).__name__}: {e}"
+        url = getattr(rec, "url", "") or ""
+        if url.startswith("http"):  # 最后直接按消息里带的下载链接拿
+            import aiohttp
+            d = os.path.join(get_astrbot_temp_path(), "dafeiyu_video")
+            os.makedirs(d, exist_ok=True)
+            path = os.path.join(d, f"rec_{uuid.uuid4().hex[:10]}")
+            async with aiohttp.ClientSession() as sess:
+                async with sess.get(url, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                    if resp.status == 200:
+                        data = await resp.read()
+                        if data:
+                            with open(path, "wb") as f:
+                                f.write(data)
+                            return path
+                    last = f"{last}；下载链接 HTTP {resp.status}"
+        raise FileNotFoundError(f"拿不到语音文件：{last}")
 
     async def _hear(self, rec, event=None):
         ffmpeg = V.find_ffmpeg((self.conf.get("ffmpeg_path") or "").strip())

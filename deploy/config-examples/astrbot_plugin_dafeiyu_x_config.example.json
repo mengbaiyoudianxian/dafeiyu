@@ -11,7 +11,7 @@
   "nsfw_share_enable": true,
   "nsfw_threshold": 85,
   "max_video_mb": 80,
-  "proxy": "http://127.0.0.1:7891",
-  "vision_provider_id": "",
+  "proxy": "",
+  "vision_provider_id": "chatgpt/gpt-6.2-sol",
   "platform_id": "大肥鱼"
 }

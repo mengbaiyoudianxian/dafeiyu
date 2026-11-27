@@ -1,50 +1,262 @@
 {
-  "enable": {"description": "开启随机念头", "type": "bool", "default": true,
-    "hint": "每隔一段随机时间，她会突然想做点什么：找你聊天、去群里冒泡、@群友、找好友、刷B站、逛贴吧、看看自己的资料"},
-  "interval_min": {"description": "两次念头最短间隔（分钟）", "type": "int", "default": 10},
-  "interval_max": {"description": "两次念头最长间隔（分钟）", "type": "int", "default": 40},
-  "quiet_hours": {"description": "免打扰时段", "type": "string", "default": "1-8", "hint": "这段时间她在睡觉，不会冒念头。比如 1-8 就是凌晨 1 点到早上 8 点"},
-  "w_owner": {"description": "权重：找主人聊天", "type": "float", "default": 3, "hint": "权重越大越容易抽到，0 就是永远不抽"},
-  "w_group": {"description": "权重：去群里冒泡", "type": "float", "default": 3},
-  "w_at": {"description": "权重：@一个群友", "type": "float", "default": 1.5},
-  "w_friend": {"description": "权重：找QQ好友聊天", "type": "float", "default": 1.5},
-  "w_bili": {"description": "权重：刷B站", "type": "float", "default": 1.5},
-  "w_tieba": {"description": "权重：逛贴吧", "type": "float", "default": 1.5},
-  "w_profile": {"description": "权重：看看自己的资料（可能顺手改）", "type": "float", "default": 0.5},
-  "w_idle": {"description": "权重：发会儿呆（什么都不做）", "type": "float", "default": 2},
-  "cap_owner": {"description": "每天最多主动找主人几次（没回的才算）", "type": "int", "default": 40, "hint": "主人回了的那次不占名额，一直有回应就不限"},
-  "cap_group": {"description": "每天最多去群里冒泡几次（所有群加起来）", "type": "int", "default": 60, "hint": "没人接话的才算次数，有人接话的不占名额"},
-  "cap_at": {"description": "每天最多 @ 群友几次（没回的才算）", "type": "int", "default": 30},
-  "cap_friend": {"description": "每天最多主动找好友几次（没回的才算）", "type": "int", "default": 30},
-  "cap_bili": {"description": "每天最多因为念头去刷B站几次", "type": "int", "default": 2, "hint": "不算B站插件自己排的时间"},
-  "cap_tieba": {"description": "每天最多因为念头去逛贴吧几次", "type": "int", "default": 2, "hint": "不算贴吧插件自己排的时间"},
-  "cap_profile": {"description": "每天最多看几次自己的资料", "type": "int", "default": 1},
-  "per_group_daily": {"description": "同一个群每天最多被她主动找几次（没人接话的才算）", "type": "int", "default": 20},
-  "group_cooldown_hours": {"description": "同一个群两次主动之间至少隔几小时", "type": "float", "default": 0.3, "hint": "上次有人接话就不用等"},
-  "friend_cooldown_hours": {"description": "同一个好友两次主动之间至少隔几小时", "type": "float", "default": 2.4, "hint": "上次对方回了就不用等"},
-  "at_cooldown_hours": {"description": "同一个人两次被 @ 之间至少隔几小时", "type": "float", "default": 1.2, "hint": "上次对方回了就不用等"},
-  "only_groups": {"description": "只在这些群里主动（群号）", "type": "list", "default": [], "hint": "留空就是她在的所有群"},
-  "exclude_groups": {"description": "这些群永远不主动（群号）", "type": "list", "default": []},
-  "balance_check_minutes": {"description": "多久查一次 DeepSeek 余额（分钟）", "type": "int", "default": 20, "hint": "用 API Key 查，不用登录账号，不花钱"},
-  "balance_low": {"description": "余额低于多少开始找主人要（元）", "type": "float", "default": 10},
-  "balance_critical": {"description": "余额低于多少算快没了（元）", "type": "float", "default": 3},
-  "ask_owner_for_money": {"description": "钱不够了主动找主人要", "type": "bool", "default": true, "hint": "会附上 DeepSeek 充值页二维码；免打扰时段不发"},
-  "ask_gap_low_hours": {"description": "不太够时隔几小时要一次", "type": "float", "default": 6},
-  "ask_gap_critical_hours": {"description": "快没了时隔几小时要一次", "type": "float", "default": 1},
-  "inject_balance": {"description": "聊天时让她知道自己还剩多少钱", "type": "bool", "default": true},
-  "voice_tempo": {"description": "语音语速倍数", "type": "float", "default": 0.88, "hint": "1 是原速，小于 1 变慢（不变调），比如 0.88"},
-  "voice_pad_seconds": {"description": "语音前后各留几秒空白", "type": "float", "default": 1.0},
-  "voice_max_chars": {"description": "超过多少字的回复不转语音", "type": "int", "default": 60, "hint": "带链接的回复也不转语音，直接发文字"},
-  "notify_owner_on_change": {"description": "改资料后私聊告诉主人", "type": "bool", "default": true},
-  "inject_self": {"description": "聊天时告诉她自己在各平台叫什么", "type": "bool", "default": true},
-  "owner_umo": {"description": "主人的会话 ID", "type": "string", "default": "", "hint": "留空就用 B 站插件的 OWNER_QQ_UMO"},
-  "platform_id": {"description": "QQ 平台名", "type": "string", "default": "大肥鱼"},
-  "persona_id": {"description": "人格名（取不到默认人格时用）", "type": "string", "default": "大肥鱼"},
-  "provider_id": {"description": "念头用哪个模型", "type": "string", "default": "", "hint": "留空用她平时聊天的模型"},
-  "human_pace": {"description": "像人一样回消息（按日程决定多久回，连发的消息合在一起回）", "type": "bool", "default": true},
-  "max_reply_delay": {"description": "最多晚多少秒回", "type": "int", "default": 60, "hint": "睡觉/上课时会晚回，这里是上限"},
-  "interruptible": {"description": "分段说话时对方插话就停下先回", "type": "bool", "default": true},
-  "group_stale_seconds": {"description": "群消息过去多少秒就不回了", "type": "int", "default": 300, "hint": "掉线重连后不去回几个小时前的消息"}
+  "enable": {
+    "description": "开启随机念头",
+    "type": "bool",
+    "default": true,
+    "hint": "每隔一段随机时间，她会突然想做点什么：找你聊天、去群里冒泡、@群友、找好友、刷B站、逛贴吧、看看自己的资料"
+  },
+  "interval_min": {
+    "description": "两次念头最短间隔（分钟）",
+    "type": "int",
+    "default": 10
+  },
+  "interval_max": {
+    "description": "两次念头最长间隔（分钟）",
+    "type": "int",
+    "default": 40
+  },
+  "quiet_hours": {
+    "description": "免打扰时段",
+    "type": "string",
+    "default": "1-8",
+    "hint": "这段时间她在睡觉，不会冒念头。比如 1-8 就是凌晨 1 点到早上 8 点"
+  },
+  "w_owner": {
+    "description": "权重：找主人聊天",
+    "type": "float",
+    "default": 3,
+    "hint": "权重越大越容易抽到，0 就是永远不抽"
+  },
+  "w_group": {
+    "description": "权重：去群里冒泡",
+    "type": "float",
+    "default": 3
+  },
+  "w_at": {
+    "description": "权重：@一个群友",
+    "type": "float",
+    "default": 1.5
+  },
+  "w_friend": {
+    "description": "权重：找QQ好友聊天",
+    "type": "float",
+    "default": 1.5
+  },
+  "w_bili": {
+    "description": "权重：刷B站",
+    "type": "float",
+    "default": 1.5
+  },
+  "w_tieba": {
+    "description": "权重：逛贴吧",
+    "type": "float",
+    "default": 1.5
+  },
+  "w_profile": {
+    "description": "权重：看看自己的资料（可能顺手改）",
+    "type": "float",
+    "default": 0.5
+  },
+  "w_addfriend": {
+    "description": "念头权重：想加个好友",
+    "type": "float",
+    "default": 1.0,
+    "hint": "从她有好感、聊过 6 次以上、还不是好友的群友里挑；先告诉主人再发申请"
+  },
+  "w_idle": {
+    "description": "权重：发会儿呆（什么都不做）",
+    "type": "float",
+    "default": 2
+  },
+  "cap_owner": {
+    "description": "每天最多主动找主人几次（没回的才算）",
+    "type": "int",
+    "default": 40,
+    "hint": "主人回了的那次不占名额，一直有回应就不限"
+  },
+  "cap_group": {
+    "description": "每天最多去群里冒泡几次（所有群加起来）",
+    "type": "int",
+    "default": 60,
+    "hint": "没人接话的才算次数，有人接话的不占名额"
+  },
+  "cap_at": {
+    "description": "每天最多 @ 群友几次（没回的才算）",
+    "type": "int",
+    "default": 30
+  },
+  "cap_friend": {
+    "description": "每天最多主动找好友几次（没回的才算）",
+    "type": "int",
+    "default": 30
+  },
+  "cap_bili": {
+    "description": "每天最多因为念头去刷B站几次",
+    "type": "int",
+    "default": 2,
+    "hint": "不算B站插件自己排的时间"
+  },
+  "cap_tieba": {
+    "description": "每天最多因为念头去逛贴吧几次",
+    "type": "int",
+    "default": 2,
+    "hint": "不算贴吧插件自己排的时间"
+  },
+  "cap_profile": {
+    "description": "每天最多看几次自己的资料",
+    "type": "int",
+    "default": 1
+  },
+  "cap_addfriend": {
+    "description": "每天最多主动加几个好友",
+    "type": "int",
+    "default": 2
+  },
+  "addfriend_min_affection": {
+    "description": "主动加好友的最低好感",
+    "type": "float",
+    "default": 55
+  },
+  "per_group_daily": {
+    "description": "同一个群每天最多被她主动找几次（没人接话的才算）",
+    "type": "int",
+    "default": 20
+  },
+  "group_cooldown_hours": {
+    "description": "同一个群两次主动之间至少隔几小时",
+    "type": "float",
+    "default": 0.3,
+    "hint": "上次有人接话就不用等"
+  },
+  "friend_cooldown_hours": {
+    "description": "同一个好友两次主动之间至少隔几小时",
+    "type": "float",
+    "default": 2.4,
+    "hint": "上次对方回了就不用等"
+  },
+  "at_cooldown_hours": {
+    "description": "同一个人两次被 @ 之间至少隔几小时",
+    "type": "float",
+    "default": 1.2,
+    "hint": "上次对方回了就不用等"
+  },
+  "only_groups": {
+    "description": "只在这些群里主动（群号）",
+    "type": "list",
+    "default": [],
+    "hint": "留空就是她在的所有群"
+  },
+  "exclude_groups": {
+    "description": "这些群永远不主动（群号）",
+    "type": "list",
+    "default": []
+  },
+  "balance_check_minutes": {
+    "description": "多久查一次 DeepSeek 余额（分钟）",
+    "type": "int",
+    "default": 20,
+    "hint": "用 API Key 查，不用登录账号，不花钱"
+  },
+  "balance_low": {
+    "description": "余额低于多少开始找主人要（元）",
+    "type": "float",
+    "default": 10
+  },
+  "balance_critical": {
+    "description": "余额低于多少算快没了（元）",
+    "type": "float",
+    "default": 3
+  },
+  "ask_owner_for_money": {
+    "description": "钱不够了主动找主人要",
+    "type": "bool",
+    "default": true,
+    "hint": "会附上 DeepSeek 充值页二维码；免打扰时段不发"
+  },
+  "ask_gap_low_hours": {
+    "description": "不太够时隔几小时要一次",
+    "type": "float",
+    "default": 6
+  },
+  "ask_gap_critical_hours": {
+    "description": "快没了时隔几小时要一次",
+    "type": "float",
+    "default": 1
+  },
+  "inject_balance": {
+    "description": "聊天时让她知道自己还剩多少钱",
+    "type": "bool",
+    "default": true
+  },
+  "voice_tempo": {
+    "description": "语音语速倍数",
+    "type": "float",
+    "default": 0.88,
+    "hint": "1 是原速，小于 1 变慢（不变调），比如 0.88"
+  },
+  "voice_pad_seconds": {
+    "description": "语音前后各留几秒空白",
+    "type": "float",
+    "default": 1.0
+  },
+  "voice_max_chars": {
+    "description": "超过多少字的回复不转语音",
+    "type": "int",
+    "default": 60,
+    "hint": "带链接的回复也不转语音，直接发文字"
+  },
+  "notify_owner_on_change": {
+    "description": "改资料后私聊告诉主人",
+    "type": "bool",
+    "default": true
+  },
+  "inject_self": {
+    "description": "聊天时告诉她自己在各平台叫什么",
+    "type": "bool",
+    "default": true
+  },
+  "owner_umo": {
+    "description": "主人的会话 ID",
+    "type": "string",
+    "default": "",
+    "hint": "留空就用 B 站插件的 OWNER_QQ_UMO"
+  },
+  "platform_id": {
+    "description": "QQ 平台名",
+    "type": "string",
+    "default": "大肥鱼"
+  },
+  "persona_id": {
+    "description": "人格名（取不到默认人格时用）",
+    "type": "string",
+    "default": "大肥鱼"
+  },
+  "provider_id": {
+    "description": "念头用哪个模型",
+    "type": "string",
+    "default": "",
+    "hint": "留空用她平时聊天的模型"
+  },
+  "human_pace": {
+    "description": "像人一样回消息（按日程决定多久回，连发的消息合在一起回）",
+    "type": "bool",
+    "default": true
+  },
+  "max_reply_delay": {
+    "description": "最多晚多少秒回",
+    "type": "int",
+    "default": 60,
+    "hint": "睡觉/上课时会晚回，这里是上限"
+  },
+  "interruptible": {
+    "description": "分段说话时对方插话就停下先回",
+    "type": "bool",
+    "default": true
+  },
+  "group_stale_seconds": {
+    "description": "群消息过去多少秒就不回了",
+    "type": "int",
+    "default": 300,
+    "hint": "掉线重连后不去回几个小时前的消息"
+  }
 }
-
-

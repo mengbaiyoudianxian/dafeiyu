@@ -18,5 +18,5 @@
   "share_per_day": 1,
   "owner_umo": "",
   "inject_context": true,
-  "provider_id": ""
+  "provider_id": "grok/grok-4.6"
 }

@@ -143,8 +143,8 @@ class DafeiyuWeb(Star):
     async def _grok_research(self, task):
         """让 Grok 用 xAI 官方的联网搜索（web_search + x_search）去查：它会自己多轮搜索、打开网页核对。"""
         # 2026-11-19 grok 欠费 402，改用 本机 Responses 接口自带的联网搜索；返回格式和 xAI 一样
-        body = {"model": "gpt-6.2-sol", "input": task, "effort": "medium", "tools": [{"type": "web_search"}],
-                "instructions": "你是一个认真的中文资料员：多搜几个来源交叉核对，必要时打开网页看原文，写清事实和出处。"}
+        body = {"model": "gpt-6.2-sol", "input": task, "effort": "low", "tools": [{"type": "web_search"}],
+                "instructions": "你是中文资料员：搜两三个靠谱来源核对就够，只写跟问题直接相关的重点（事实、数字、时间、出处），简短。"}
         async with aiohttp.ClientSession() as sess:
             async with sess.post("http://127.0.0.1:18790/v1/codex/raw", json=body,
                                  timeout=aiohttp.ClientTimeout(total=3600)) as r:
@@ -176,8 +176,8 @@ class DafeiyuWeb(Star):
         if not q:
             return "没说要查什么。"
         started = time.time()
-        task = (f"帮我上网查：{q}\n要求：多搜几个来源交叉核对，必要时打开网页看原文；把查到的具体事实、数字、时间、出处讲清楚，"
-                f"说明哪些是确定的、哪些有争议或查不到；用中文回答，最后列出参考链接。")
+        task = (f"帮我上网查：{q}\n要求：搜两三个靠谱来源核对，挑跟问题直接相关的重点：具体事实、数字、时间、出处；"
+                f"哪些不确定或查不到也说一句；中文，400 字以内，最后列参考链接。")
         try:
             text, cites, steps = await self._grok_research(task)
             if text:

@@ -109,18 +109,65 @@ s['tieba_posts_read'] = len(td)
 s['tieba_actions'] = len(th)
 
 # ---- token ----
+# 真实用量 = 转换服务（GPT 订阅，聊天 + 读空气/心情/记忆/刷网/识图等全部调用）的账本
+#          + AstrBot 里不走转换服务的模型（grok、deepseek）
+#          + 转换服务开始记账之前 AstrBot 记下的 GPT 主聊天
+LEDGER = '/opt/dafeiyu/private/token_ledger.json'
+
+
+def bridge_ledger():
+    led = jload(LEDGER, {}) or {}
+    cmd = ['sudo', '-n', 'journalctl', '-u', 'dafeiyu-codex-bridge', '--no-pager', '-o', 'short-iso', '--show-cursor']
+    if led.get('cursor'):
+        cmd += ['--after-cursor', led['cursor']]
+    try:
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=120).stdout
+    except Exception:
+        return led
+    for line in out.splitlines():
+        if line.startswith('-- cursor: '):
+            led['cursor'] = line[len('-- cursor: '):].strip()
+            continue
+        m = re.search(r'INFO ok \S+ [\d.]+s in=(\d+) out=(\d+)', line)
+        if not m:
+            continue
+        led.setdefault('since', line[:19].replace('T', ' '))
+        led['calls'] = led.get('calls', 0) + 1
+        led['in'] = led.get('in', 0) + int(m.group(1))
+        led['out'] = led.get('out', 0) + int(m.group(2))
+    try:
+        tmp = LEDGER + '.tmp'
+        json.dump(led, open(tmp, 'w', encoding='utf-8'), ensure_ascii=False)
+        os.replace(tmp, LEDGER)
+    except Exception:
+        pass
+    return led
+
+
+led = bridge_ledger()
+first = None
 try:
     db = sqlite3.connect('file:%sdata_v4.db?mode=ro' % D, uri=True)
     row = db.execute('select count(*), coalesce(sum(token_input_other),0), coalesce(sum(token_input_cached),0), '
                      'coalesce(sum(token_output),0), min(created_at) from provider_stats').fetchone()
     s['llm_calls'] = row[0]
-    s['tokens_input'] = row[1] + row[2]
-    s['tokens_cached'] = row[2]
-    s['tokens_output'] = row[3]
-    s['tokens_total'] = row[1] + row[2] + row[3]
     first = row[4]
+    since = (led.get('since') or '9999').replace('T', ' ')
+    # 不走转换服务的模型：全算；走转换服务的 GPT：只算账本开始之前的，之后由账本算（避免重复）
+    oth = db.execute("select coalesce(sum(token_input_other+token_input_cached),0), coalesce(sum(token_output),0) from provider_stats "
+                     "where provider_id not like 'chatgpt/%' or created_at < ?", (since,)).fetchone()
+    s['tokens_input'] = oth[0] + led.get('in', 0)
+    s['tokens_output'] = oth[1] + led.get('out', 0)
+    s['tokens_cached'] = row[2]
+    s['tokens_total'] = s['tokens_input'] + s['tokens_output']
+    HISTORY_TOKENS = int(os.environ.get('DAFEIYU_HISTORICAL_TOKENS', '0'))
+    s['tokens_history'] = HISTORY_TOKENS
+    s['tokens_total'] += HISTORY_TOKENS
+    s['tokens_chat_only'] = row[1] + row[2] + row[3]
+    s['bridge_calls'] = led.get('calls', 0)
+    s['tokens_ledger_since'] = led.get('since')
 except Exception:
-    first = None
+    pass
 born = datetime(2026, 11, 10)
 if first:
     try:
@@ -179,7 +226,7 @@ block = f"""## 她现在怎么样
 | 对话调用模型 | {n(s.get('llm_calls'))} 次 |
 | 累计 token | {wan(s.get('tokens_total'))}（输入 {wan(s.get('tokens_input'))}，其中缓存命中 {wan(s.get('tokens_cached'))}；输出 {wan(s.get('tokens_output'))}） |
 
-<sub>token 只统计聊天主流程（AstrBot 自带统计），后台整理记忆、刷网、心情判断这些额外调用没算进去。</sub>"""
+<sub>token 含聊天和后台所有调用（读空气、心情、整理记忆、刷网、识图）：GPT 订阅部分按转换服务的逐次记录从 {s.get('tokens_ledger_since') or '—'} 起累计，其他模型按 AstrBot 统计。</sub>"""
 
 os.makedirs(os.path.join(REPO, 'stats'), exist_ok=True)
 with open(os.path.join(REPO, 'stats', 'stats.json'), 'w', encoding='utf-8') as f:

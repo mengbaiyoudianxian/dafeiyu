@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>大肥鱼 · 互动</title>
+<link rel="stylesheet" href="panel.css">
+<script src="panel.js" defer></script>
+<main>
+  <h1>大肥鱼</h1>
+  <section aria-labelledby="scene-heading">
+    <h2 id="scene-heading">此刻</h2>
+    <p id="scene-text" role="status">正在读取场景…</p>
+    <img id="scene" alt="大肥鱼此刻的场景" hidden>
+    <button id="refresh" type="button">刷新场景</button>
+  </section>
+  <section aria-labelledby="chat-heading">
+    <h2 id="chat-heading">和她聊聊</h2>
+    <form id="login">
+      <label for="key">私聊大肥鱼发送 /钥匙，输入她给你的钥匙</label>
+      <div class="row"><input id="key" type="password" required autocomplete="off"><button>登录</button></div>
+    </form>
+    <div id="account" hidden>
+      <div class="row"><span id="member"></span><button id="logout" type="button">退出</button></div>
+      <form id="touch">
+        <label for="action">互动动作</label>
+        <div class="row"><select id="action" required></select><button>互动</button></div>
+      </form>
+      <ol id="history" aria-label="你的网页对话" aria-live="polite"></ol>
+      <form id="chat">
+        <label for="message">给大肥鱼发消息</label>
+        <div class="row"><input id="message" maxlength="300" required autocomplete="off"><button>发送</button></div>
+      </form>
+    </div>
+    <p id="notice" role="status"></p>
+  </section>
+</main>
+</html>

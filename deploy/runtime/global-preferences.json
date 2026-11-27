@@ -1,0 +1,40 @@
+{
+  "tool_permissions": {
+    "_default": {
+      "llm_publish_feed": "admin",
+      "llm_view_feed": "admin",
+      "set_signature": "admin"
+    }
+  },
+  "inactivated_plugins": [
+    "data.plugins.astrbot_plugin_bili_scroll.main",
+    "data.plugins.astrbot_plugin_dafeiyu_tieba.main",
+    "data.plugins.astrbot_plugin_dafeiyu_x.main"
+  ],
+  "inactivated_llm_tools": [
+    "better_music_search",
+    "better_music_sing"
+  ],
+  "alter_cmd": {
+    "builtin_commands": {
+      "help": {
+        "permission": "admin"
+      },
+      "sid": {
+        "permission": "admin"
+      },
+      "stop": {
+        "permission": "admin"
+      },
+      "stats": {
+        "permission": "admin"
+      },
+      "set_variable": {
+        "permission": "admin"
+      },
+      "unset_variable": {
+        "permission": "admin"
+      }
+    }
+  }
+}

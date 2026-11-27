@@ -1,0 +1,11 @@
+{
+  "scene_enable": true,
+  "keep_days": 7,
+  "listen_host": "127.0.0.1",
+  "listen_port": 16290,
+  "allow_peer": "",
+  "touch_reply_gap": 6,
+  "touch_judge_gap": 90,
+  "chat_gap": 3,
+  "chat_daily": 200
+}

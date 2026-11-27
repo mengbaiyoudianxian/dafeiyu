@@ -1,0 +1,17 @@
+[Unit]
+Description=Upload a raw disk image in resumable volumes to Alipan
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=%h/.config/alipan-raw/job.env
+
+[Service]
+Type=exec
+UMask=0077
+NoNewPrivileges=yes
+EnvironmentFile=%h/.config/alipan-raw/job.env
+ExecStart=/usr/bin/python3 -B -u %h/.local/share/alipan-raw/backup.py --source ${SOURCE} --destination ${DESTINATION} --state-dir ${JOB_STATE} --config-dir ${CLI_CONFIG} --cli ${CLI_PATH} --workers ${WORKERS} --volume-mib ${VOLUME_MIB} $DEVICE_OPTION
+Restart=on-failure
+RestartSec=60
+
+[Install]
+WantedBy=default.target

@@ -14,7 +14,6 @@ _src = open('/opt/dafeiyu/github/export_repo.py', encoding='utf-8').read()
 exec(_src.split('# ---------- 开始导出 ----------')[0])
 _leak_src = _src.split('# ---------- 泄漏扫描 ----------')[1].split('private_literals')[0]
 exec(_leak_src)
-LEAK.append((r'43\.142\.97\.15|38\.76\.188\.50', '服务器 IP'))
 private_literals = [x for x in (owner, bot) if x] + gnames + risky_names
 
 PUSH = '--push' in ARGS

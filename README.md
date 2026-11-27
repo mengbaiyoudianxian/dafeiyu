@@ -62,7 +62,7 @@
 QQ ──NapCat（无头 QQ 客户端）──反向 WebSocket──▶ AstrBot v4（Python 框架）
                                                    ├─ 自写插件 plugins/astrbot_plugin_dafeiyu_*（心情、念头、知识库、刷网、语音……）
                                                    ├─ 第三方插件（群聊增强、B站、长期记忆、表情包、点歌……）
-                                                   └─ 模型：任意 OpenAI 兼容接口（主力） + DeepSeek（兜底）
+                                                   └─ 模型：grok/grok-4.6（主力，未配置自动兜底）
                                                             小米 MiMo（语音合成）、SenseVoice（本地语音识别）、ffmpeg
 ```
 
@@ -70,11 +70,13 @@ QQ ──NapCat（无头 QQ 客户端）──反向 WebSocket──▶ AstrBot 
 
 ## 部署
 
+当前运行版的安装入口是 **[deploy/install.sh](deploy/install.sh)**。仓库锁定 Python 环境、框架补丁和 31 个插件，另提供只在本机迁移私有设置的工具。
+
 一步一步的部署说明在 **[docs/deploy.md](docs/deploy.md)**，用到的插件和版本在 **[docs/plugins.md](docs/plugins.md)**，人设在 **[deploy/persona.md](deploy/persona.md)**。
 
 ## 只想装某个插件
 
-每个插件都单独开了仓库：AstrBot 后台 → 插件 → 从链接安装，填仓库地址就行。
+当前完整插件集见 [inventory.json](inventory.json)。部分插件也有独立仓库：AstrBot 后台 → 插件 → 从链接安装，填仓库地址就行。
 
 **自写插件**（大肥鱼非商业许可）
 

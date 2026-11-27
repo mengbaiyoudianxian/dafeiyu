@@ -1,7 +1,7 @@
 """Claude 巡检中转：Claude 每小时看一次日志，发现她哪里不像人就直接修（修前备份），修完用她的 QQ 私聊主人列出编号；
 主人在 QQ 里回「撤回 #编号」（可一次写多个），这里记下来交给 Claude，Claude 按备份退回。
 
-- 发：Claude 往 /opt/dafeiyu/private/claude_relay/outbox/ 放 .txt，这里每 15 秒扫一次，私聊发给主人，挪到 sent/。
+- 发：Claude 往中转目录下的 outbox 放 .txt，这里每 15 秒扫一次，私聊发给主人，挪到 sent/。
 - 收：只认主人私聊、且带「#编号」的回复，写进 inbox.jsonl，回一句「收到」，并拦下不让她接话。
   别人发的、群里发的一律不算。
 """
@@ -16,8 +16,11 @@ import time
 from astrbot import logger
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.star import Context, Star
+from astrbot.core.utils.astrbot_path import get_astrbot_data_path
 
-ROOT = "/opt/dafeiyu/private/claude_relay"
+ROOT = os.environ.get("DAFEIYU_CLAUDE_RELAY_DIR") or os.path.join(
+    get_astrbot_data_path(), "plugin_data", "astrbot_plugin_dafeiyu_claude", "relay"
+)
 OUT, SENT, INBOX = f"{ROOT}/outbox", f"{ROOT}/sent", f"{ROOT}/inbox.jsonl"
 YES = r"同意|好的?|可以|行|改吧|改(?=\s*$)|ok|OK|Ok"
 NO = r"不同意|不行|不要|别改|拒绝|算了|no|NO"
@@ -27,7 +30,10 @@ REPLY2 = re.compile(rf"^\s*[#＃]\s*(?P<id>\d{{1,6}})\s*(?P<verb>{NO}|{YES})?\s*
 
 
 def _owner_qq():
-    path = "/opt/dafeiyu/astrbot/data/config/astrbot_plugin_bili_scroll_config.json"
+    owner = os.environ.get("DAFEIYU_OWNER_QQ", "").strip()
+    if owner:
+        return owner
+    path = os.path.join(get_astrbot_data_path(), "config", "astrbot_plugin_bili_scroll_config.json")
     try:
         with open(path, encoding="utf-8-sig") as f:
             return str(json.load(f).get("OWNER_QQ_UMO") or "").strip().rsplit(":", 1)[-1]

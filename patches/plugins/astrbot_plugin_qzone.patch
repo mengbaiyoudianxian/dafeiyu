@@ -1,0 +1,20 @@
+diff --git a/main.py b/main.py
+index 77a100254236b790d75ec7acdfef57b1e2d709b5..708524fe3b74516159e4d880b75f1892b077b1ef 100644
+--- a/main.py
++++ b/main.py
+@@ -578,11 +578,13 @@ class QzonePlugin(Star):
+                 no_self=no_self,
+             )
+             if not posts:
+-                await event.send(event.plain_result("查询结果为空"))
++                await event.send(event.plain_result("翻了一圈空间，没刷到能看的说说诶"))
+                 event.stop_event()
+             return posts
+         except Exception as e:
+-            await event.send(event.plain_result(str(e)))
++            msg = str(e)
++            await event.send(event.plain_result(
++                "翻了一圈空间，没刷到能看的说说诶" if "暂无可见说说" in msg else "空间这会儿刷不出来，等会儿我再去看看"))
+             logger.error(e)
+             event.stop_event()
+             return []

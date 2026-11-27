@@ -1,0 +1,14 @@
+{$FISH_SITE} {
+    redir /fish /fish/
+    handle_path /fish/* {
+        root * {$FISH_STATIC_ROOT}
+        header Referrer-Policy no-referrer
+        file_server
+    }
+    handle_path /fish-api/* {
+        rewrite * /api{uri}
+        reverse_proxy {$FISH_TOUCH_UPSTREAM:127.0.0.1:16290} {
+            header_up X-Real-Client {remote_host}
+        }
+    }
+}

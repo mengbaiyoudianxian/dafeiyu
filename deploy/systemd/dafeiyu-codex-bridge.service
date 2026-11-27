@@ -1,0 +1,13 @@
+[Unit]
+Description=Dafeiyu ChatGPT subscription (Codex) bridge for AstrBot
+After=network-online.target
+
+[Service]
+EnvironmentFile=/opt/dafeiyu/private/codex-bridge.env
+User=agentuser
+ExecStart=/opt/dafeiyu/uv/tools/astrbot/bin/python /opt/dafeiyu/codex-bridge/bridge.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

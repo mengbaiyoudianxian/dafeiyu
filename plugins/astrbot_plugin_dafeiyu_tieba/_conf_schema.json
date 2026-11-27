@@ -44,7 +44,14 @@
     "description": "她感兴趣的吧",
     "type": "list",
     "hint": "自己逛时从这里挑；聊天里她被叫去逛过的吧也会算进来",
-    "default": ["deepseek", "弱智", "二次元", "原神", "显卡", "大学"]
+    "default": [
+      "deepseek",
+      "弱智",
+      "二次元",
+      "原神",
+      "显卡",
+      "大学"
+    ]
   },
   "share_to_owner": {
     "description": "看到好玩的私聊分享给主人",

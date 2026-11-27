@@ -26,9 +26,9 @@ try:
 except Exception:
     pass
 bot = open('/opt/dafeiyu/private/bot-qq.txt').read().strip() if os.path.exists('/opt/dafeiyu/private/bot-qq.txt') else ''
-REPL = [(r'100\.102\.136\.88', '127.0.0.1'), (r'43\.142\.97\.15', '<SERVER_IP>'), (r'38\.76\.188\.50', '<SERVER_IP>'),
-        (r'your-server', 'your-server'), (r'tail[0-9a-f]{6}\.ts\.net', 'your-tailnet.ts.net'), (r'主人', '主人'),
-        (r'本机 Responses 接口', '本机 Responses 接口')]
+# Private deployment addresses are supplied by the operator.
+private_hosts = os.environ.get('DAFEIYU_PRIVATE_HOSTS', '').replace(',', ' ').split()
+REPL = [(re.escape(host), '<SERVER_HOST>') for host in private_hosts]
 for q in (owner, bot):
     if q:
         REPL.append((re.escape(q), ''))
@@ -97,12 +97,8 @@ def scrub_config(o, path=''):
 
 
 # ---------- 开始导出 ----------
-if os.path.isdir(OUT):
-    for name in os.listdir(OUT):
-        if name in ('.git',):
-            continue
-        p = os.path.join(OUT, name)
-        shutil.rmtree(p) if os.path.isdir(p) else os.remove(p)
+if os.path.exists(OUT) and (not os.path.isdir(OUT) or os.listdir(OUT)):
+    sys.exit('Legacy exporter requires a new empty directory outside the release checkout.')
 os.makedirs(OUT, exist_ok=True)
 
 # 1) 自写插件
@@ -236,7 +232,6 @@ LEAK = [
     (r'SESSDATA\s*[=:]\s*["\']?[A-Za-z0-9%,*]{20,}', 'SESSDATA'), (r'auth_token["\']?\s*[=:]\s*["\']?[0-9a-f]{30,}', 'X auth_token'),
     (r'-----BEGIN [A-Z ]*PRIVATE KEY-----', '私钥'), (r'(?<!\d)1[3-9]\d{9}(?!\d)', '手机号'),
     (r'100\.(?!64\.0\.0\b)\d{1,3}\.\d{1,3}\.\d{1,3}', 'Tailscale IP'),  # 100.64.0.0/10 是通用网段，不算
-    (r'43\.142\.97\.15|38\.76\.188\.50', '服务器 IP'),
     (r'your-server|tail[0-9a-f]{6}\.ts\.net', '主机名'),
 ]
 private_literals = [x for x in (owner, bot) if x] + gnames + risky_names

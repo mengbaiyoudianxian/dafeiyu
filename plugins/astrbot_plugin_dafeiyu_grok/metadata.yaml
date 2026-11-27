@@ -1,0 +1,6 @@
+name: astrbot_plugin_dafeiyu_grok
+display_name: 大肥鱼用 Grok 订阅
+desc: "经授权的图像与视频生成工具，通过服务环境配置 xAI API 密钥。"
+help: 管理员 /grok状态 看登录和额度，/grok登录 重新登录
+version: v0.1.0
+author: dafeiyu-local

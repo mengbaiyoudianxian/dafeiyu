@@ -2,12 +2,12 @@
   "bot_language": "zh",
   "access_control": {
     "whitelist_enabled": true,
-    "allowed_ids": "大肥鱼:FriendMessage:\nwebchat:FriendMessage:webchat!!desk-pet",
+    "allowed_ids": "",
     "identity_aliases": ""
   },
   "provider_settings": {
     "embedding_provider_id": "大肥鱼记忆-硅基流动",
-    "llm_provider_id": "chatgpt/gpt-6.2-sol",
+    "llm_provider_id": "grok/grok-4.6",
     "llm_fallback_provider_ids": [],
     "llm_call_timeout_seconds": 60,
     "llm_stream_mode": "auto"
@@ -29,7 +29,7 @@
     "recent_memory_count": 0,
     "recent_memory_max_age_hours": 72,
     "memory_type_filter": "all",
-    "tokenizer": "",
+    "tokenizer": "jieba",
     "fallback_to_vector": true,
     "rerank_enabled": false,
     "rerank_provider_id": "",

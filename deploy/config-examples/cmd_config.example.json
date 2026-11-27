@@ -54,6 +54,30 @@
       "timeout": 3600,
       "proxy": "",
       "custom_headers": {}
+    },
+    {
+      "id": "grok",
+      "provider": "xai",
+      "type": "openai_chat_completion",
+      "provider_type": "chat_completion",
+      "enable": true,
+      "key": [],
+      "api_base": "https://api.x.ai/v1",
+      "timeout": 3600,
+      "proxy": "",
+      "custom_headers": {}
+    },
+    {
+      "id": "chatgpt",
+      "provider": "openai",
+      "type": "openai_chat_completion",
+      "provider_type": "chat_completion",
+      "enable": true,
+      "key": [],
+      "api_base": "http://127.0.0.1:18790/v1",
+      "timeout": 3600,
+      "proxy": "",
+      "custom_headers": {}
     }
   ],
   "provider": [
@@ -104,11 +128,104 @@
       "embedding_dimensions_mode": "auto",
       "timeout": 20,
       "proxy": ""
+    },
+    {
+      "id": "grok/grok-4.7",
+      "enable": true,
+      "provider_source_id": "grok",
+      "model": "grok-4.7",
+      "modalities": [
+        "text",
+        "image",
+        "tool_use"
+      ],
+      "custom_extra_body": {},
+      "max_context_tokens": 200000
+    },
+    {
+      "id": "grok/grok-4.7-deep",
+      "enable": true,
+      "provider_source_id": "grok",
+      "model": "grok-4.7",
+      "modalities": [
+        "text",
+        "image",
+        "tool_use"
+      ],
+      "custom_extra_body": {
+        "reasoning_effort": "xhigh"
+      },
+      "max_context_tokens": 200000
+    },
+    {
+      "id": "grok/grok-4.6",
+      "enable": true,
+      "provider_source_id": "grok",
+      "model": "grok-4.6",
+      "modalities": [
+        "text",
+        "image",
+        "tool_use"
+      ],
+      "custom_extra_body": {},
+      "max_context_tokens": 200000
+    },
+    {
+      "id": "grok/grok-4.20-fast",
+      "enable": true,
+      "provider_source_id": "grok",
+      "model": "grok-4.20-0309-non-reasoning",
+      "modalities": [
+        "text",
+        "image",
+        "tool_use"
+      ],
+      "custom_extra_body": {},
+      "max_context_tokens": 0
+    },
+    {
+      "id": "chatgpt/gpt-6.2-sol",
+      "enable": false,
+      "provider_source_id": "chatgpt",
+      "model": "gpt-6.2-sol",
+      "modalities": [
+        "text",
+        "image",
+        "tool_use"
+      ],
+      "custom_extra_body": {},
+      "max_context_tokens": 200000
+    },
+    {
+      "id": "chatgpt/gpt-6.2-sol-deep",
+      "enable": false,
+      "provider_source_id": "chatgpt",
+      "model": "gpt-6.2-sol@xhigh",
+      "modalities": [
+        "text",
+        "image",
+        "tool_use"
+      ],
+      "custom_extra_body": {},
+      "max_context_tokens": 200000
+    },
+    {
+      "id": "chatgpt/gpt-5.6-luna",
+      "enable": true,
+      "provider_source_id": "chatgpt",
+      "model": "gpt-5.6-luna",
+      "modalities": [
+        "text",
+        "image",
+        "tool_use"
+      ],
+      "custom_extra_body": {},
+      "max_context_tokens": 272000
     }
   ],
   "provider_settings": {
     "enable": true,
-    "default_image_caption_provider_id": "",
+    "default_image_caption_provider_id": "chatgpt/gpt-5.6-luna",
     "image_caption_prompt": "Please describe the image using Chinese.",
     "provider_pool": [
       "*"
@@ -194,16 +311,12 @@
     "runner_type": "local",
     "config": {
       "model": {
-        "provider_id": "deepseek/deepseek-flash",
-        "fallback_provider_ids": [
-          "deepseek/deepseek-flash"
-        ],
+        "provider_id": "grok/grok-4.6",
+        "fallback_provider_ids": [],
         "request_max_retries": 5
       },
       "persona": {
-        "persona_id": "大肥鱼",
-        "safety_mode": true,
-        "safety_mode_strategy": "system_prompt"
+        "persona_id": "大肥鱼"
       },
       "compression": {
         "max_turns": 30,
@@ -211,8 +324,8 @@
         "overflow_strategy": "llm_compress",
         "instruction": "",
         "keep_recent_ratio": 0.15,
-        "provider_id": "",
-        "fallback_max_tokens": 0
+        "provider_id": "grok/grok-4.6",
+        "fallback_max_tokens": 128000
       },
       "misc": {
         "max_steps": 128,
@@ -237,7 +350,7 @@
     "provider_id": "大肥鱼语音-MiMo",
     "dual_output": false,
     "use_file_service": false,
-    "trigger_probability": 0
+    "trigger_probability": 0.0
   },
   "provider_ltm_settings": {
     "group_icl_enable": true,
@@ -283,12 +396,6 @@
   ],
   "dashboard": {
     "enable": true,
-    "username": "mengbai",
-    "password": "",
-    "pbkdf2_password": "",
-    "password_storage_upgraded": true,
-    "password_change_required": false,
-    "jwt_secret": "",
     "host": "127.0.0.1",
     "port": 6185,
     "disable_access_log": true,
@@ -297,17 +404,6 @@
       "enable": true,
       "average_interval": 1,
       "max_burst": 3
-    },
-    "totp": {
-      "enable": false,
-      "secret": "",
-      "recovery_code_hash": ""
-    },
-    "ssl": {
-      "enable": false,
-      "cert_file": "",
-      "key_file": "",
-      "ca_certs": ""
     }
   },
   "platform": [

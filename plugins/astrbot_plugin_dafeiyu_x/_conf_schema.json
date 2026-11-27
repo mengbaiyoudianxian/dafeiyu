@@ -1,17 +1,78 @@
 {
-  "enable": {"description": "让她自己刷推特", "type": "bool", "default": true},
-  "sessions_per_day": {"description": "每天最多刷几轮", "type": "int", "default": 8},
-  "check_min": {"description": "两次「想不想刷」之间最短几分钟", "type": "int", "default": 25},
-  "check_max": {"description": "两次「想不想刷」之间最长几分钟", "type": "int", "default": 70},
-  "comment_enable": {"description": "允许她在推特上评论", "type": "bool", "default": true},
-  "comments_per_day": {"description": "每天最多评论几条", "type": "int", "default": 5},
-  "comment_chance": {"description": "一轮里遇到想评的，真去评论的概率", "type": "float", "default": 0.5},
-  "shares_per_day": {"description": "每天最多主动发主人几条", "type": "int", "default": 6},
-  "share_chance": {"description": "一轮里有好东西时，真发给主人的概率", "type": "float", "default": 0.6},
-  "nsfw_share_enable": {"description": "允许私聊发色情帖（仍要过信任/好感门槛，群里永远不发）", "type": "bool", "default": true},
-  "nsfw_threshold": {"description": "色情帖门槛：信任和好感都要到多少", "type": "int", "default": 85},
-  "max_video_mb": {"description": "视频最大多少 MB，超过不下", "type": "int", "default": 80},
-  "proxy": {"description": "推特走哪个代理", "type": "string", "default": "http://127.0.0.1:7891", "hint": "默认走 19224 节点，和你平时用推特同一个出口"},
-  "vision_provider_id": {"description": "识图模型（色情帖发图前查未成年）", "type": "string", "default": "grok/grok-4.6"},
-  "platform_id": {"description": "QQ 平台名", "type": "string", "default": "大肥鱼"}
+  "enable": {
+    "description": "让她自己刷推特",
+    "type": "bool",
+    "default": true
+  },
+  "sessions_per_day": {
+    "description": "每天最多刷几轮",
+    "type": "int",
+    "default": 8
+  },
+  "check_min": {
+    "description": "两次「想不想刷」之间最短几分钟",
+    "type": "int",
+    "default": 25
+  },
+  "check_max": {
+    "description": "两次「想不想刷」之间最长几分钟",
+    "type": "int",
+    "default": 70
+  },
+  "comment_enable": {
+    "description": "允许她在推特上评论",
+    "type": "bool",
+    "default": true
+  },
+  "comments_per_day": {
+    "description": "每天最多评论几条",
+    "type": "int",
+    "default": 5
+  },
+  "comment_chance": {
+    "description": "一轮里遇到想评的，真去评论的概率",
+    "type": "float",
+    "default": 0.5
+  },
+  "shares_per_day": {
+    "description": "每天最多主动发主人几条",
+    "type": "int",
+    "default": 6
+  },
+  "share_chance": {
+    "description": "一轮里有好东西时，真发给主人的概率",
+    "type": "float",
+    "default": 0.6
+  },
+  "nsfw_share_enable": {
+    "description": "允许私聊发色情帖（仍要过信任/好感门槛，群里永远不发）",
+    "type": "bool",
+    "default": true
+  },
+  "nsfw_threshold": {
+    "description": "色情帖门槛：信任和好感都要到多少",
+    "type": "int",
+    "default": 85
+  },
+  "max_video_mb": {
+    "description": "视频最大多少 MB，超过不下",
+    "type": "int",
+    "default": 80
+  },
+  "proxy": {
+    "description": "推特走哪个代理",
+    "type": "string",
+    "default": "http://127.0.0.1:7891",
+    "hint": "默认走 19224 节点，和你平时用推特同一个出口"
+  },
+  "vision_provider_id": {
+    "description": "识图模型（色情帖发图前查未成年）",
+    "type": "string",
+    "default": "grok/grok-4.6"
+  },
+  "platform_id": {
+    "description": "QQ 平台名",
+    "type": "string",
+    "default": "大肥鱼"
+  }
 }
